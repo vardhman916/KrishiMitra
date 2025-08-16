@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krishi Mitra - AI-Powered Agricultural Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+</style>
+
+<!-- Link to your external style.css in static folder -->
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Initializing Krishi Mitra...</div>
+        </div>
+    </div>
+
+    <!-- Background -->
+    <div class="background"></div>
+    <div class="particles" id="particles"></div>
+
+    <!-- Navigation -->
+    <nav id="navbar">
+        <a href="#profile" class="nav-brand">
+            <div class="logo">
+                <i class="fas fa-seedling"></i>
+            </div>
+            <div class="logo-text">Krishi Mitra</div>
+        </a>
+        <ul class="nav-links">
+            <li><a href="#profile">Home</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#experience">Features</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+        <div class="mobile-menu-toggle" id="mobileToggle">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu" id="mobileMenu">
+        <ul class="mobile-nav-links">
+            <li><a href="#profile">Home</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#experience">Features</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+    </div>
+
+    <!-- Hero Section -->
+    <section id="profile">
+        <div class="hero-content">
+            <p class="section_text_p1">Hello, I'm</p>
+            <h1 class="big-name">Krishi Mitra</h1>
+            <h2 class="big-title">AI-Powered Advisor for Farmers</h2>
+
+            <div class="mode-selector" style="margin-bottom: 2rem; text-align: center;">
+                <button class="mode-btn active" id="textMode">
+                    <i class="fas fa-keyboard"></i> Text Mode
+                </button>
+                <button class="mode-btn" id="voiceMode">
+                    <i class="fas fa-microphone"></i> Voice Mode
+                </button>
+            </div>
+
+            <!-- UPDATED: Input container with conditional mic icon and submit button -->
+            <div class="input-container" id="inputContainer">
+                <input type="text" placeholder="Ask me about farming, weather, crops, market prices..." class="chat-input" id="chatInput">
+                <div class="submit-btn" id="submitBtn">
+                    <i class="fas fa-paper-plane"></i>
+                </div>
+            </div>
+
+            <!-- ADDED: Central mic icon for voice mode (initially hidden) -->
+            <div class="central-mic-container" id="centralMicContainer">
+                <div class="central-mic-icon" id="centralMicIcon">
+                    <i class="fas fa-microphone"></i>
+                </div>
+                <div class="voice-controls" id="voiceControls">
+                    <button class="voice-btn stop-btn" id="stopVoiceBtn">
+                        <i class="fas fa-stop"></i> Stop
+                    </button>
+                </div>
+            </div>
+
+            <div class="language-selector" style="margin-bottom: 1.5rem; text-align: center;">
+    <div class="language-dropdown">
+        <button class="language-btn" id="languageBtn"> 
+            <i class="fas fa-globe"></i>
+            <span id="selectedLanguage">English (Indian)</span>
+            <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="language-options" id="languageOptions">
+            <div class="language-option" data-lang="en-IN" data-name="English (Indian)">
+                <span>English (Indian)</span>
+            </div>
+            <div class="language-option" data-lang="hi-IN" data-name="Hindi">
+                <span>हिंदी (Hindi)</span>
+            </div>
+            <div class="language-option" data-lang="bn-IN" data-name="Bengali">
+                <span>বাংলা (Bengali)</span>
+            </div>
+            <div class="language-option" data-lang="ta-IN" data-name="Tamil">
+                <span>தமிழ் (Tamil)</span>
+            </div>
+            <div class="language-option" data-lang="te-IN" data-name="Telugu">
+                <span>తెలుగు (Telugu)</span>
+            </div>
+            <div class="language-option" data-lang="mr-IN" data-name="Marathi">
+                <span>मराठी (Marathi)</span>
+            </div>
+            <div class="language-option" data-lang="gu-IN" data-name="Gujarati">
+                <span>ગુજરાતી (Gujarati)</span>
+            </div>
+            <div class="language-option" data-lang="kn-IN" data-name="Kannada">
+                <span>ಕನ್ನಡ (Kannada)</span>
+            </div>
+            <div class="language-option" data-lang="ml-IN" data-name="Malayalam">
+                <span>മലയാളം (Malayalam)</span>
+            </div>
+            <div class="language-option" data-lang="pa-Guru-IN" data-name="Punjabi">
+                <span>ਪੰਜਾਬੀ (Punjabi)</span>
+            </div>
+            <div class="language-option" data-lang="or-IN" data-name="Odia">
+                <span>ଓଡ଼ିଆ (Odia)</span>
+            </div>
+            <div class="language-option" data-lang="ur-IN" data-name="Urdu">
+                <span>اردو (Urdu)</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+            <!-- ADDED: Processing status text below central mic -->
+            <div class="processing-status" id="processingStatus"></div>
+
+            <div class="chat-response" id="chatResponse">
+                <div class="response-content" id="responseContent"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="fade-in">
+        <div class="section-header">
+            <p class="section-subtitle">Get To Know More</p>
+            <h1 class="section-title">About Krishi Mitra</h1>
+        </div>
+        
+        <div class="about-layout">
+            <div class="about-image slide-in-left">
+              <img src="{{ url_for('static', filename='1.jpg') }}" alt="Indian Farmer" />
+            </div>
+            
+            <div class="slide-in-right">
+                <div class="about-cards">
+                    <div class="feature-card">
+                        <div class="card-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <h3>AI-Powered Intelligence</h3>
+                        <p>Advanced machine learning algorithms providing real-time agricultural insights and personalized recommendations</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="card-icon">
+                            <i class="fas fa-language"></i>
+                        </div>
+                        <h3>Multi-Language Support</h3>
+                        <p>Available in Hindi, Tamil, Telugu, and other regional Indian languages for maximum accessibility</p>
+                    </div>
+                </div>
+                
+                <div class="about-description">
+                    <p>
+                        KrishiMitra revolutionizes agriculture in rural India by providing farmers with intelligent, data-driven insights. 
+                        Designed specifically for small-scale farmers, our platform bridges the digital divide by offering voice-based 
+                        interactions, regional language support, and offline capabilities. From weather predictions to crop management, 
+                        fertilizer recommendations to market prices, KrishiMitra serves as your trusted agricultural companion, helping 
+                        increase productivity while reducing costs and environmental impact.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-number" data-count="5">0</span>
+                    <span class="stat-label">Farmers Helped</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" data-count="1">0</span>
+                    <span class="stat-label">Villages Reached</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" data-count="95">0</span>
+                    <span class="stat-label">% Accuracy Rate</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" data-count="22">0</span>
+                    <span class="stat-label">Languages Supported</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="experience" class="fade-in">
+        <div class="section-header">
+            <p class="section-subtitle">Explore Our</p>
+            <h1 class="section-title">Smart Features</h1>
+        </div>
+        
+        <!-- Core Agricultural Services -->
+        <div class="feature-section-wrapper">
+            <h2 class="main-feature-title">Core Agricultural Services</h2>
+            <div class="scrollable-feature-container">
+                <div class="feature-items-scroll" id="coreServices">
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-cloud-sun"></i></div>
+                        <div class="feature-info">
+                            <h4>AI Weather Prediction</h4>
+                            <p class="feature-level">5-Day Forecast</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-seedling"></i></div>
+                        <div class="feature-info">
+                            <h4>Smart Crop Planning</h4>
+                            <p class="feature-level">Yield Optimization</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-flask"></i></div>
+                        <div class="feature-info">
+                            <h4>Digital Soil Testing</h4>
+                            <p class="feature-level">NPK Analysis</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-bug"></i></div>
+                        <div class="feature-info">
+                            <h4>AI Pest Advisory</h4>
+                            <p class="feature-level">Diagnoses crop issues</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                        <div class="feature-info">
+                            <h4>Live Market Data</h4>
+                            <p class="feature-level">Price Trends</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-tractor"></i></div>
+                        <div class="feature-info">
+                            <h4>Government Schemes</h4>
+                            <p class="feature-level">Available Governemt schemes</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gap between sections -->
+        <div class="section-gap"></div>
+
+        <!-- Smart Technology Stack -->
+        <div class="feature-section-wrapper">
+            <h2 class="main-feature-title">Smart Technology Stack</h2>
+            <div class="scrollable-feature-container">
+                <div class="feature-items-scroll" id="techStack">
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-robot"></i></div>
+                        <div class="feature-info">
+                            <h4>LLM + RAG</h4>
+                            <p class="feature-level">Predictive Analytics</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+                        <div class="feature-info">
+                            <h4>Market Price API</h4>
+                            <p class="feature-level">Mandi Price</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-cloud-sun"></i></div>
+                        <div class="feature-info">
+                            <h4>Open Weather API</h4>
+                            <p class="feature-level">LIVE Weather Forcast</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-language"></i></div>
+                        <div class="feature-info">
+                            <h4>Indic Trans2</h4>
+                            <p class="feature-level">Translates 22 scheduled Indian languages</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-database"></i></div>
+                        <div class="feature-info">
+                            <h4>Wikidata Integration</h4>
+                            <p class="feature-level">Access to verified agricultural facts & datasets</p>
+                        </div>
+                    </div>
+                    <!-- <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+                        <div class="feature-info">
+                            <h4>Data Security</h4>
+                            <p class="feature-level">Encrypted Storage</p>
+                        </div>
+                    </div> -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Gap between sections -->
+        <div class="section-gap"></div>
+
+        <!-- User Experience Features -->
+        <div class="feature-section-wrapper">
+            <h2 class="main-feature-title">User Experience Features</h2>
+            <div class="scrollable-feature-container">
+                <div class="feature-items-scroll" id="userExperience">
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-microphone"></i></div>
+                        <div class="feature-info">
+                            <h4>Voice Recognition</h4>
+                            <p class="feature-level">Speech-to-Text</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-volume-up"></i></div>
+                        <div class="feature-info">
+                            <h4>Text-to-Speech</h4>
+                            <p class="feature-level">Audio Responses</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-database"></i></div>
+                        <div class="feature-info">
+                            <h4>Data-Grounded Trustworthy Advice</h4>
+                            <p class="feature-level">Built on Verified Public Data</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-comments"></i></div>
+                        <div class="feature-info">
+                            <h4>Multilingual Voice & Text Agent</h4>
+                            <p class="feature-level">Supports Hindi, Hinglish, Kannada & more</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fa-solid fa-headset"></i></div>
+                        <div class="feature-info">
+                            <h4>Support Assistant</h4>
+                            <p class="feature-level">Guided prompts, easy navigation & help for all users</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="fade-in">
+        <div class="section-header">
+            <p class="section-subtitle">Get In Touch</p>
+            <h1 class="section-title">Contact Krishi Mitra</h1>
+        </div>
+        
+        <div class="contact-wrapper">
+            <div class="contact-items">
+                <div class="contact-item">
+                    <div class="contact-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <a href="mailto:krishimitra@gmail.com">support@krishimitra.in</a>
+                </div>
+                <div class="contact-item">
+                    <div class="contact-icon">
+                        <i class="fas fa-phone"></i>
+                    </div>
+                    <a href="tel:+918882477516">1800-123-456 (Toll Free)</a>
+                </div>
+                <div class="contact-item">
+                    <div class="contact-icon">
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+                    <a href="https://wa.me/918882477516">WhatsApp Support</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2025 Krishi Mitra. Empowering Indian Farmers with AI Technology.</p>
+        <p>Made with ❤ for the farmers of India</p>
+        <div class="footer-links">
+            <a href="#privacy">Privacy Policy</a>
+            <a href="#terms">Terms of Service</a>
+            <a href="#support">Support</a>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>
