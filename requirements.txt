@@ -37,7 +37,7 @@ beautifulsoup4
 selenium
 
 # audio + speech recognition
-pyaudio
+# pyaudio
 six
 google-cloud-speech
 google-cloud-core
