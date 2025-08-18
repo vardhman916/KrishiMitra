@@ -38,7 +38,7 @@ selenium
 
 # audio + speech recognition
 # pyaudio
-six
+# six
 google-cloud-speech
 google-cloud-core
 
@@ -46,6 +46,15 @@ google-cloud-core
 langdetect
 regex
 python-dateutil
+
+langchain-google-community
+google-search-results
+
+
+oogle-api-python-client      # For Google APIs
+google-auth                   # For Google authentication
+google-auth-oauthlib         # For OAuth
+google-auth-httplib2         # For HTTP transport
 
 
 
