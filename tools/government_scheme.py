@@ -1,22 +1,3 @@
-# from langchain_experimental.agents import create_csv_agent
-# from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-# import os
-# from dotenv import load_dotenv
-# load_dotenv()
-# api_key = os.getenv("GEMINI_API_KEY")
-# # Initialize your LLM (OpenAI, for example)
-# llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=api_key)
-
-# # Create an agent with your CSV file
-# agent = create_csv_agent(llm, "pdf/gov_scheme/Government_Schemes_Advanced.csv",verbose=True,
-#     allow_dangerous_code=True)
-
-# # Ask a question
-# response = agent.run("I want to get to known about any government schemeor insurance related to coconut farmming in india and give discription about that scheme")
-
-# print(response)
-
-# tools/government_scheme.py
 import os
 from dotenv import load_dotenv
 from langchain_experimental.agents import create_csv_agent
@@ -26,7 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 load_dotenv()
 
 # API key for Gemini
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = os.getenv("GEMINI_API_KEY") 
 
 # Initialize LLM
 llm = ChatGoogleGenerativeAI(
@@ -37,7 +18,7 @@ llm = ChatGoogleGenerativeAI(
 # Create CSV agent
 agent = create_csv_agent(
     llm,
-    "pdf/gov_scheme/Government_Schemes_Advanced.csv",
+    "dataset/gov_scheme/Government_Schemes_Advanced.csv",
     verbose=False,
     allow_dangerous_code=True
 )

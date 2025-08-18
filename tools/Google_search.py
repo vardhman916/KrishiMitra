@@ -1,26 +1,4 @@
-# import os
-# from langchain_core.tools import Tool
-# from langchain_google_community import GoogleSearchAPIWrapper
-# from dotenv import load_dotenv
-
-# load_dotenv()
-# GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
-# GOOGLE_API_KEY= os.getenv("GOOGLE_API_KEY")
-
-# search = GoogleSearchAPIWrapper(
-#     google_api_key=GOOGLE_API_KEY,
-#     google_cse_id=GOOGLE_CSE_ID
-# )
-
-# tool = Tool(
-#     name="google_search",
-#     description="Search Google for recent results.",
-#     func=search.run,
-# )
-# result = tool.run("what are the seed variety present in wheat")
-# print(result)
-# ----------------------------------------------------
-# tools/Google_search.py
+# Google Search Tool for Agricultural Information
 import os
 from langchain_core.tools import Tool
 from langchain_google_community import GoogleSearchAPIWrapper

@@ -960,18 +960,6 @@ function initChatInterface() {
     console.log('Chat interface and language selector initialized');
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
         
         function initCountUpAnimations() {
             const counters = document.querySelectorAll('.stat-number');

@@ -12,8 +12,6 @@ pinecone-client
 pypdf
 sentence-transformers
 uvicorn
-arxiv
-bs4
 chromadb
 faiss-cpu # one type of databases to store embedding
 wikipedia
@@ -27,7 +25,27 @@ mediawikiapi
 httpx
 httpcore
 googletrans-py
+pdfplumber 
+pdf2image 
+pytesseract
+pymupdf
+gunicorn
 
+#web scraping
+requests
+beautifulsoup4
+selenium
+
+# audio + speech recognition
+pyaudio
+six
+google-cloud-speech
+google-cloud-core
+
+# language detection + utils
+langdetect
+regex
+python-dateutil
 
 
 

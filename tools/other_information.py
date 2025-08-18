@@ -17,7 +17,7 @@ llm = ChatGoogleGenerativeAI(
 
 agent1 = create_csv_agent(
     llm,
-    "pdf\gov_scheme\india_crop_dataset_complete (1).csv",
+    "dataset\gov_scheme\india_crop_dataset_complete (1).csv",
     verbose=False,
     allow_dangerous_code=True,
     handle_parsing_errors=True
