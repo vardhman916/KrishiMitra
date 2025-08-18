@@ -51,7 +51,7 @@ langchain-google-community
 google-search-results
 
 
-oogle-api-python-client      # For Google APIs
+google-api-python-client      # For Google APIs
 google-auth                   # For Google authentication
 google-auth-oauthlib         # For OAuth
 google-auth-httplib2         # For HTTP transport

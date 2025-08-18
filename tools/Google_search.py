@@ -1,7 +1,7 @@
 # Google Search Tool for Agricultural Information
 import os
 from langchain_core.tools import Tool
-from langchain_google_community import GoogleSearchAPIWrapper
+from langchain_community.utilities import GoogleSearchAPIWrapper
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
