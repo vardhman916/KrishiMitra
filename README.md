@@ -1,4 +1,4 @@
-# KrishiMitra (कृषिम)
+# KrishiMitra (कृषिमित्र)
 
 **AI-Powered Advisor for Farmers** — a multilingual voice + text assistant that provides hyper-local, data-grounded recommendations (weather, soil, fertilizer, market prices, government schemes).
 KrishiMitra revolutionizes agriculture in rural India by providing farmers with intelligent, data-driven insights. 
