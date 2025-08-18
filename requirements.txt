@@ -32,12 +32,13 @@ pymupdf
 gunicorn
 
 #web scraping
-requests
-beautifulsoup4
-selenium
+
+# requests
+# beautifulsoup4
+# selenium
 
 # audio + speech recognition
-# pyaudio
+pyaudio
 # six
 google-cloud-speech
 google-cloud-core
@@ -49,7 +50,6 @@ python-dateutil
 
 langchain-google-community
 google-search-results
-
 
 google-api-python-client      # For Google APIs
 google-auth                   # For Google authentication
