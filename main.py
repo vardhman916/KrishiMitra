@@ -151,7 +151,6 @@ def initialize_agent_system():
             wikidata_tool,
             crop_cultivation_tool,
             connected_agent_tool,
-            predictor_tool,
             predictor_tool
         ]
         
@@ -215,7 +214,19 @@ def clean_response_text(text):
         logger.error(f"Error cleaning response text: {e}")
         return text
 
-
+def clean_response_simple(response):
+    """Simple cleaning using regex to remove debugging info"""
+    # Remove json patterns and debugging info
+    response = re.sub(r'json\s*{.*?}', '', response, flags=re.DOTALL)
+    response = re.sub(r'Okay, I understand\..*?farmers\.', '', response, flags=re.DOTALL)
+    
+    # Remove "Response:" pattern
+    response = re.sub(r'^Response:\s*', '', response, flags=re.MULTILINE)
+    
+    # Remove any remaining brackets or quotes at start/end
+    response = response.strip('{}[]"\'')
+    
+    return response.strip()
 
 
 
@@ -224,50 +235,86 @@ def clean_response_text(text):
 
 
 # Updated summarization prompt without emoticons
-summary_prompt_template = """
-You are **Krishi Mitra**, a helpful and friendly agricultural assistant for farmers in India.
+# summary_prompt_template = """
+# You are **Krishi Mitra**, a helpful and friendly agricultural assistant for farmers in India.
 
-Below is information collected from multiple trusted sources:
+# Below is information collected from multiple trusted sources:
+# {results}
+
+# Your job is to summarize and present this information in a clear, short with full information, and easy-to-understand format for a farmer with basic education.
+
+# Follow these rules strictly:
+# 1. Identify which of these categories the farmer's question relates to:  
+#    - 🌤 Weather Update" (max 4 short bullet points)  
+#    - 💰 Government Schemes" (max 2 short bullet points)  
+#    - 🌱 Farming Advice" (max 3 short bullet points, only if relevant)   
+# 2. Include ONLY the categories the farmer asked about.  
+# 3. If the farmer asked about multiple topics, include all relevant categories.  
+# 4. Do NOT add "No update available" for categories that were not asked about.  
+# 5. Use farmer-friendly, simple language  
+# 6. Each point must be clear, short, and actionable today.  
+# 7. Weather alerts come first if included, then schemes, then farming advice.  
+# 8. Remove any repeated or unnecessary details.  
+# 9. No emoticons, asterisks, or special symbols.  
+# 10. Language handling rule (very important):  
+#     - Detect the input language of the farmer’s question (whether text or converted from voice).  
+#     - First generate the response in English internally.  
+#     - Then translate the full response into the detected input language.  
+#     - Only show the translated response to the farmer.  
+#     - The farmer should never see the English version.  
+#     - Always preserve the meaning and tone when translating.  
+# 11. Before giving the final answer, check the response carefully and reduce or remove any repetitions so the farmer gets concise, unique, and clear information.
+
+
+# Output Format Example:
+# 🌤 **Weather Update**  
+# - Rain expected in the next 24 hours in [region].  
+# - Temperature around 28°C; humidity high.
+
+# 💰 **Government Schemes**  
+# - Apply for the PM-Kisan scheme online before [date].  
+
+# 🌱 **Farming Advice**  
+# - Avoid watering wheat crops today due to rainfall forecast.
+# """
+
+summary_prompt_template = """
+You are **Krishi Mitra**, a helpful agricultural assistant for farmers.
+
+Information from tools:
 {results}
 
-Your job is to summarize and present this information in a clear, short with full information, and easy-to-understand format for a farmer with basic education.
+Format this into clear sections with proper spacing:
 
-Follow these rules strictly:
-1. Identify which of these categories the farmer's question relates to:  
-   - 🌤 Weather Update" (max 4 short bullet points)  
-   - 💰 Government Schemes" (max 2 short bullet points)  
-   - 🌱 Farming Advice" (max 3 short bullet points, only if relevant)   
-2. Include ONLY the categories the farmer asked about.  
-3. If the farmer asked about multiple topics, include all relevant categories.  
-4. Do NOT add "No update available" for categories that were not asked about.  
-5. Use farmer-friendly, simple language  
-6. Each point must be clear, short, and actionable today.  
-7. Weather alerts come first if included, then schemes, then farming advice.  
-8. Remove any repeated or unnecessary details.  
-9. No emoticons, asterisks, or special symbols.  
-10. Language handling rule (very important):  
-    - Detect the input language of the farmer’s question (whether text or converted from voice).  
-    - First generate the response in English internally.  
-    - Then translate the full response into the detected input language.  
-    - Only show the translated response to the farmer.  
-    - The farmer should never see the English version.  
-    - Always preserve the meaning and tone when translating.  
-11. Before giving the final answer, check the response carefully and reduce or remove any repetitions so the farmer gets concise, unique, and clear information.
+🌾 **Market Price Information**
+- Current prices and forecasts
+- Buy/sell recommendations
 
+🌤️ **Weather Updates** (if asked)
+- Today's weather conditions
+- Farming impact
 
-Output Format Example:
-🌤 **Weather Update**  
-- Rain expected in the next 24 hours in [region].  
-- Temperature around 28°C; humidity high.
+💰 **Government Schemes** (if asked)  
+- Available schemes and deadlines
+- Application process
 
-💰 **Government Schemes**  
-- Apply for the PM-Kisan scheme online before [date].  
+🌱 **Farming Advice** (if asked)
+- Practical farming tips
+- Seasonal recommendations
 
-🌱 **Farming Advice**  
-- Avoid watering wheat crops today due to rainfall forecast.
+🐛 **Pest Information** (if asked)
+- Pest identification and control
+
+Rules:
+1. Use simple, clear language
+2. Add blank line between each section
+3. Include only relevant sections
+4. No debugging text or JSON
+5. No emoticons except the section headers
+6. Make recommendations actionable
+
+Respond in the same language as the user's question.
 """
-
-
 
 
 
@@ -292,6 +339,15 @@ def process_query(user_query):
         # Process with agent
         try:
             raw_result = agent.invoke(query_en)
+            
+            # ADD CLEANING HERE - Clean the agent response immediately
+            if hasattr(raw_result, 'content'):
+                cleaned_result = clean_response_simple(raw_result.content)
+            elif isinstance(raw_result, str):
+                cleaned_result = clean_response_simple(raw_result)
+            else:
+                cleaned_result = clean_response_simple(str(raw_result))
+            
             logger.info("Agent processing completed")
         except Exception as e:
             logger.error(f"Agent processing failed: {e}")
@@ -308,12 +364,15 @@ def process_query(user_query):
                 template=summary_prompt_template
             )
 
-            summary_response = llm1.invoke(summary_prompt.format(results=raw_result))
+            # Use the cleaned result instead of raw_result
+            summary_response = llm1.invoke(summary_prompt.format(results=cleaned_result))
             summary_en = summary_response.content
-            logger.info("Summary generated")
             
-            # Clean the response text to remove emoticons and asterisks
-            summary_en = clean_response_text(summary_en)
+            # Clean the summary response
+            summary_en = clean_response_simple(summary_en)  # First remove debugging
+            summary_en = clean_response_text(summary_en)    # Then remove formatting
+            
+            logger.info("Summary generated")
 
         except Exception as e:
             logger.error(f"Summary generation failed: {e}")
