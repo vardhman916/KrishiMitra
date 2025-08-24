@@ -1,5 +1,5 @@
 import os
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = r'D:\open_AI_api\divine-display-461906-u9.json'
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = r'D:\open_AI_api\divine-display-461906-u9-2a42513e09c3.json'
 
 import pyaudio
 from google.cloud import speech

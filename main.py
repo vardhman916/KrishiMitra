@@ -429,9 +429,11 @@ def initialize_systems():
     
     logger.info("All systems initialized successfully")
     return True
-
+    
 # ---- Flask Routes ----
-
+# from flask import Flask, request, jsonify, render_template, session
+# import os
+# from main import *
 @app.route('/')
 def index():
     """Serve the main HTML page"""
