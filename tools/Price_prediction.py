@@ -140,7 +140,7 @@ def predictor_tool_func(query: str):
 
 predictor_tool = Tool(
     name="predictor_tool",
-    description="Forecasts crop price using ARIMA and gives sell/hold recommendation.",
+    description="Advanced ARIMA-based crop price forecasting tool that analyzes historical price data to predict future crop prices. Provides detailed price forecasts, trend analysis, and actionable buy/sell/hold recommendations based on predicted price movements. Use this tool when users ask about: future crop prices, price predictions, market trends, whether to sell or hold crops, investment decisions, or any forecasting-related queries. Input should include crop name, district, and market for accurate predictions.",
     func=predictor_tool_func
 )
 
@@ -164,11 +164,11 @@ def connected_agent(query: str):
     )
     return response
 
+#conneted agent tool
+connected_agent_tool = Tool(
+    name="connected_agent_tool",
+    description="Gets both current market prices from Google and ARIMA forecast with buy/sell recommendations for crops in specific districts and markets.",
+    func=connected_agent
+)
 
-# =========================
-# 🔹 Example Usage
-# =========================
-if __name__ == "__main__":
-    query = "What is the current price of wheat dadri in gautam budh nagar 2025 today and should I sell?"
-    result = connected_agent(query)
-    print("\nFinal Response:\n", result)
+forcast = ['google_search_tool', 'predictor_tool', 'connected_agent_tool']

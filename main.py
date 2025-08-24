@@ -4,6 +4,8 @@ import os
 from dotenv import load_dotenv
 
 from tools.Google_search import google_search_tool
+from tools.Price_prediction import predictor_tool
+from tools.Price_prediction import connected_agent, connected_agent_tool
 from tools.government_scheme import government_scheme_tool
 from tools.weather_forecast_tools import get_weather_forecast
 from tools.wikidata import wikidata_tool
@@ -147,8 +149,10 @@ def initialize_agent_system():
             get_weather_forecast,
             combined_Pest_tool,
             wikidata_tool,
-            crop_cultivation_tool
-
+            crop_cultivation_tool,
+            connected_agent_tool,
+            predictor_tool,
+            predictor_tool
         ]
         
         agent = initialize_agent(
@@ -241,7 +245,16 @@ Follow these rules strictly:
 7. Weather alerts come first if included, then schemes, then farming advice.  
 8. Remove any repeated or unnecessary details.  
 9. No emoticons, asterisks, or special symbols.  
-10. Detect the language of the farmer's question and give the final response in that same language.
+10. Language handling rule (very important):  
+    - Detect the input language of the farmer’s question (whether text or converted from voice).  
+    - First generate the response in English internally.  
+    - Then translate the full response into the detected input language.  
+    - Only show the translated response to the farmer.  
+    - The farmer should never see the English version.  
+    - Always preserve the meaning and tone when translating.  
+11. Before giving the final answer, check the response carefully and reduce or remove any repetitions so the farmer gets concise, unique, and clear information.
+
+
 Output Format Example:
 🌤 **Weather Update**  
 - Rain expected in the next 24 hours in [region].  
