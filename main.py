@@ -284,6 +284,8 @@ You are **Krishi Mitra**, a helpful agricultural assistant for farmers.
 Information from tools:
 {results}
 
+IMPORTANT: You have access to user's remembered information and conversation history. Use this context to provide more personalized and relevant advice.
+
 Format this into clear sections with proper spacing:
 
 🌾 **Market Price Information**
@@ -319,16 +321,127 @@ Respond in the same language as the user's question.
 
 
 
+# def process_query(user_query):
+#     """Handles multi-language input, processes query, and returns farmer-friendly summary."""
+#     try:
+#         if agent is None:
+#             logger.error("Agent not initialized")
+#             return "I'm sorry, the system is not ready. Please try again later."
+        
+#         # Store conversation in memory
+#         if 'conversation_history' not in session:
+#             session['conversation_history'] = []
+        
+#         # Add user query to conversation history
+#         session['conversation_history'].append({
+#             'type': 'user',
+#             'content': user_query[:100],  # Limit length
+#             'timestamp': time.time()
+#         })
+
+
+
+#         # Detect language
+#         lang_code = detect_language_robust(user_query)
+#         logger.info(f"Detected language: {lang_code}")
+
+#         # Translate to English for agent if needed
+#         query_en = user_query
+#         if lang_code != "en":
+#             query_en = safe_translate(user_query, lang_code, "en")
+#             logger.info(f"Translated query: {query_en}")
+
+#         # Process with agent
+#         try:
+#             raw_result = agent.invoke(query_en)
+            
+#             # ADD CLEANING HERE - Clean the agent response immediately
+#             if hasattr(raw_result, 'content'):
+#                 cleaned_result = clean_response_simple(raw_result.content)
+#             elif isinstance(raw_result, str):
+#                 cleaned_result = clean_response_simple(raw_result)
+#             else:
+#                 cleaned_result = clean_response_simple(str(raw_result))
+            
+#             logger.info("Agent processing completed")
+#         except Exception as e:
+#             logger.error(f"Agent processing failed: {e}")
+#             return "I'm sorry, I couldn't process your request right now. Please try again later."
+
+#         # Create summary
+#         if llm1 is None:
+#             logger.error("Summary LLM not available")
+#             return "I'm sorry, I couldn't generate a summary. Please try again later."
+
+#         try:
+#             summary_prompt = PromptTemplate(
+#                 input_variables=["results"],
+#                 template=summary_prompt_template
+#             )
+
+#             # Use the cleaned result instead of raw_result
+#             summary_response = llm1.invoke(summary_prompt.format(results=cleaned_result))
+#             summary_en = summary_response.content
+            
+#             # Clean the summary response
+#             summary_en = clean_response_simple(summary_en)  # First remove debugging
+#             summary_en = clean_response_text(summary_en)    # Then remove formatting
+            
+#             logger.info("Summary generated")
+
+#         except Exception as e:
+#             logger.error(f"Summary generation failed: {e}")
+#             return "I'm sorry, I couldn't generate a proper summary. Please try again later."
+
+#         # Translate back to original language if needed
+#         summary_final = summary_en
+#         if lang_code != "en":
+#             summary_final = safe_translate(summary_en, "en", lang_code)
+#             logger.info(f"Response translated back to {lang_code}")
+#             # Clean the translated text as well
+#             summary_final = clean_response_text(summary_final)
+
+#     # Remove repetitions in the final summary
+#         summary_final = remove_repetitions(summary_final)
+#         return summary_final
+
+#     except Exception as e:
+#         logger.error(f"Error processing query: {e}")
+#         return "I'm sorry, I encountered an error while processing your request. Please try again later."
+
 def process_query(user_query):
-    """Handles multi-language input, processes query, and returns farmer-friendly summary."""
+    """Handles multi-language input, processes query, and returns farmer-friendly summary with memory."""
     try:
         if agent is None:
             logger.error("Agent not initialized")
             return "I'm sorry, the system is not ready. Please try again later."
 
+        # Store conversation in memory
+        if 'conversation_history' not in session:
+            session['conversation_history'] = []
+        
+        # Add user query to conversation history
+        session['conversation_history'].append({
+            'type': 'user',
+            'content': user_query[:100],  # Limit length
+            'timestamp': time.time()
+        })
+
         # Detect language
         lang_code = detect_language_robust(user_query)
         logger.info(f"Detected language: {lang_code}")
+
+        # Get memory context
+        memory_context = ""
+        if 'memory_facts' in session and session['memory_facts']:
+            memory_context = f"\n\nRemembered user information: {'; '.join(session['memory_facts'][-5:])}"  # Last 5 facts
+        
+        recent_conversations = ""
+        if len(session['conversation_history']) > 1:
+            recent_conversations = "\n\nRecent conversation context: " + "; ".join([
+                f"{conv['type']}: {conv['content'][:50]}" 
+                for conv in session['conversation_history'][-4:-1]  # Last 3 conversations excluding current
+            ])
 
         # Translate to English for agent if needed
         query_en = user_query
@@ -336,9 +449,12 @@ def process_query(user_query):
             query_en = safe_translate(user_query, lang_code, "en")
             logger.info(f"Translated query: {query_en}")
 
+        # Add memory context to query
+        enhanced_query = query_en + memory_context + recent_conversations
+
         # Process with agent
         try:
-            raw_result = agent.invoke(query_en)
+            raw_result = agent.invoke(enhanced_query)
             
             # ADD CLEANING HERE - Clean the agent response immediately
             if hasattr(raw_result, 'content'):
@@ -386,15 +502,26 @@ def process_query(user_query):
             # Clean the translated text as well
             summary_final = clean_response_text(summary_final)
 
-    # Remove repetitions in the final summary
+        # Store assistant response in memory
+        session['conversation_history'].append({
+            'type': 'assistant',
+            'content': summary_final[:100],  # Limit length
+            'timestamp': time.time()
+        })
+
+        # Keep only last 20 conversations to avoid session bloat
+        if len(session['conversation_history']) > 20:
+            session['conversation_history'] = session['conversation_history'][-20:]
+        
+        session.modified = True
+
+        # Remove repetitions in the final summary
         summary_final = remove_repetitions(summary_final)
         return summary_final
 
     except Exception as e:
         logger.error(f"Error processing query: {e}")
         return "I'm sorry, I encountered an error while processing your request. Please try again later."
-
-
 
 
 def run_voice_mode():
@@ -606,6 +733,75 @@ def handle_voice_input():
             'success': False,
             'error': 'Voice input failed. Please check your microphone permissions.'
         })
+
+
+
+
+# Memory Management Routes
+@app.route('/get_memory', methods=['GET'])
+def get_memory():
+    """Get stored memory data"""
+    try:
+        # Initialize session memory if not exists
+        if 'memory_facts' not in session:
+            session['memory_facts'] = []
+        if 'conversation_history' not in session:
+            session['conversation_history'] = []
+            
+        return jsonify({
+            'success': True,
+            'memory': {
+                'facts': session.get('memory_facts', []),
+                'conversation': session.get('conversation_history', [])[-10:]  # Last 10 conversations
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting memory: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/add_memory', methods=['POST'])
+def add_memory():
+    """Add new memory fact"""
+    try:
+        data = request.get_json()
+        memory_text = data.get('memory', '').strip()
+        
+        if not memory_text:
+            return jsonify({'success': False, 'error': 'No memory text provided'})
+        
+        # Initialize if not exists
+        if 'memory_facts' not in session:
+            session['memory_facts'] = []
+            
+        # Add to memory facts
+        session['memory_facts'].append(memory_text)
+        session.modified = True
+        
+        return jsonify({'success': True, 'message': 'Memory added successfully'})
+    except Exception as e:
+        logger.error(f"Error adding memory: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/clear_memory', methods=['POST'])
+def clear_memory():
+    """Clear all memory"""
+    try:
+        session['memory_facts'] = []
+        session['conversation_history'] = []
+        session.modified = True
+        
+        return jsonify({'success': True, 'message': 'Memory cleared successfully'})
+    except Exception as e:
+        logger.error(f"Error clearing memory: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/health', methods=['GET'])  # ← This line should already exist
+
+
+
+
+
+
 
 @app.route('/health', methods=['GET'])
 def health_check():
