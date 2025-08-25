@@ -47,7 +47,75 @@
             <span></span>
             <span></span>
         </div>
+
+        <!-- Memory Sidebar Toggle Button -->
+        <div class="memory-toggle" id="memoryToggle">
+            <i class="fas fa-history"></i>
+        </div>
+
     </nav>
+
+    <!-- Memory Sidebar -->
+<div class="memory-sidebar" id="memorySidebar"> 
+    <div class="memory-sidebar-content">
+        <div class="memory-header">
+            <h3><i class="fas fa-brain"></i> Session Memory</h3>
+            <button class="close-sidebar" id="closeSidebar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="memory-content">
+            <div class="current-facts">
+                <h4>Remembered Facts</h4>
+                <div id="memoryFacts" class="facts-list">
+                    <p class="no-memory">No information remembered yet</p>
+                </div>
+            </div>
+            
+            <div class="conversation-history">
+                <h4>Recent Conversation</h4>
+                <div id="conversationHistory" class="history-list">
+                    <p class="no-history">No conversation history</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="memory-actions">
+            <button class="memory-btn add-memory-btn" id="addMemoryBtn">
+                <i class="fas fa-plus"></i> Add Memory
+            </button>
+            <button class="memory-btn clear-memory-btn" id="clearMemoryBtn">
+                <i class="fas fa-trash"></i> Clear Memory
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Memory Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Add Memory Modal -->
+<div class="add-memory-modal" id="addMemoryModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add to Memory</h3>
+            <button class="close-modal" id="closeModal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <textarea id="memoryInput" placeholder="Enter information to remember (e.g., 'Farmer name is Kartik', 'Farm location is Punjab')"></textarea>
+            <div class="modal-actions">
+                <button class="modal-btn save-btn" id="saveMemory">Save</button>
+                <button class="modal-btn cancel-btn" id="cancelModal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
 
     <!-- Mobile Menu -->
     <div class="mobile-menu" id="mobileMenu">
@@ -73,7 +141,11 @@
                 <button class="mode-btn" id="voiceMode">
                     <i class="fas fa-microphone"></i> Voice Mode
                 </button>
+                <button class="mode-btn" id="imageMode">
+                    <i class="fas fa-camera"></i> Image Mode
+    </button>
             </div>
+
 
             <!-- UPDATED: Input container with conditional mic icon and submit button -->
             <div class="input-container" id="inputContainer">
@@ -94,6 +166,63 @@
                     </button>
                 </div>
             </div>
+            
+            <!-- ADDED: Image Mode Container -->
+<div class="image-mode-container" id="imageModeContainer">
+    <div class="image-upload-header">
+        <p>Upload the crop image for pest or disease detection.</p>
+    </div>
+    
+    <div class="upload-options">
+        <button class="upload-option" id="photoLibraryBtn">
+            <div class="upload-icon">
+                <i class="fas fa-images"></i>
+            </div>
+            <div class="upload-text">
+                <h4>Photo Library</h4>
+                <p>Choose from your saved photos</p>
+            </div>
+        </button>
+        
+        <button class="upload-option" id="takePhotoBtn">
+            <div class="upload-icon">
+                <i class="fas fa-camera"></i>
+            </div>
+            <div class="upload-text">
+                <h4>Take Photo</h4>
+                <p>Capture image with camera</p>
+            </div>
+        </button>
+        
+        <button class="upload-option" id="chooseFileBtn">
+            <div class="upload-icon">
+                <i class="fas fa-file-upload"></i>
+            </div>
+            <div class="upload-text">
+                <h4>Choose File</h4>
+                <p>Upload PDF or image files</p>
+            </div>
+        </button>
+        
+        <button class="upload-option" id="uploadDriveBtn">
+            <div class="upload-icon">
+                <i class="fab fa-google-drive"></i>
+            </div>
+            <div class="upload-text">
+                <h4>Upload from Drive</h4>
+                <p>Select files from Google Drive</p>
+            </div>
+        </button>
+    </div>
+    
+    <!-- Hidden file inputs -->
+    <input type="file" id="fileInput" accept="image/*,.pdf" style="display: none;">
+    <input type="file" id="cameraInput" accept="image/*" capture="camera" style="display: none;">
+    
+    <!-- Upload status -->
+    <div class="upload-status" id="uploadStatus"></div>
+</div>
+
 
             <div class="language-selector" style="margin-bottom: 1.5rem; text-align: center;">
     <div class="language-dropdown">
@@ -422,6 +551,22 @@
     </footer>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+    <!-- Camera Modal - Add this anywhere in your HTML body -->
+<div id="cameraModal" class="camera-modal">
+    <div class="camera-container">
+        <video id="cameraVideo" autoplay playsinline></video>
+        <canvas id="cameraCanvas" style="display: none;"></canvas>
+        <div class="camera-controls">
+            <button id="captureBtn" class="capture-btn">
+                <i class="fas fa-camera"></i> Capture Photo
+            </button>
+            <button id="closeCameraBtn" class="close-camera-btn">
+                <i class="fas fa-times"></i> Close
+            </button>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>
