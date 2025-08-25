@@ -595,6 +595,7 @@ function initChatInterface() {
 
 // Initialize Memory Sidebar
     initMemorySidebar();
+    initAuthSystem();
     
     console.log('Chat interface, language selector, and memory sidebar initialized');
 }
@@ -968,6 +969,164 @@ function initMemorySidebar() {
     }
 }
 
+
+function initAuthSystem() {
+    const userAvatar = document.getElementById('userAvatar');
+    const userMenu = document.getElementById('userMenu');
+    const loginOption = document.getElementById('loginOption');
+    const signupOption = document.getElementById('signupOption');
+    const loginModal = document.getElementById('loginModal');
+    const signupModal = document.getElementById('signupModal');
+    
+    // Load states and districts data
+    let statesData = {};
+    loadStatesData();
+    
+    // Avatar dropdown toggle
+    userAvatar.addEventListener('click', (e) => {
+        e.stopPropagation();
+        userMenu.classList.toggle('active');
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', () => {
+        userMenu.classList.remove('active');
+    });
+    
+    // Login option
+    loginOption.addEventListener('click', () => {
+        userMenu.classList.remove('active');
+        loginModal.classList.add('active');
+    });
+    
+    // Signup option
+    signupOption.addEventListener('click', () => {
+        userMenu.classList.remove('active');
+        signupModal.classList.add('active');
+    });
+    
+    // Close modals
+    document.getElementById('closeLoginModal').addEventListener('click', () => {
+        loginModal.classList.remove('active');
+    });
+    
+    document.getElementById('closeSignupModal').addEventListener('click', () => {
+        signupModal.classList.remove('active');
+    });
+    
+    document.getElementById('cancelLogin').addEventListener('click', () => {
+        loginModal.classList.remove('active');
+    });
+    
+    document.getElementById('cancelSignup').addEventListener('click', () => {
+        signupModal.classList.remove('active');
+    });
+    
+    document.getElementById('cancelSignupMobile').addEventListener('click', () => {
+        signupModal.classList.remove('active');
+    });
+    
+    // Signup option selection
+    document.querySelectorAll('.signup-option').forEach(option => {
+        option.addEventListener('click', () => {
+            document.querySelectorAll('.signup-option').forEach(opt => opt.classList.remove('selected'));
+            option.classList.add('selected');
+            
+            const type = option.getAttribute('data-type');
+            document.querySelectorAll('.signup-form').forEach(form => form.classList.remove('active'));
+            
+            if (type === 'email') {
+                document.getElementById('emailSignupForm').classList.add('active');
+            } else {
+                document.getElementById('mobileSignupForm').classList.add('active');
+            }
+        });
+    });
+    
+    // State-District handling
+    function setupStateDistrictDropdowns(stateId, districtId) {
+        const stateSelect = document.getElementById(stateId);
+        const districtSelect = document.getElementById(districtId);
+        
+        stateSelect.addEventListener('change', () => {
+            const selectedState = stateSelect.value;
+            districtSelect.innerHTML = '<option value="">Select District</option>';
+            
+            if (selectedState && statesData[selectedState]) {
+                statesData[selectedState].forEach(district => {
+                    const option = document.createElement('option');
+                    option.value = district;
+                    option.textContent = district;
+                    districtSelect.appendChild(option);
+                });
+            }
+        });
+    }
+    
+    setupStateDistrictDropdowns('farmerState', 'farmerDistrict');
+    setupStateDistrictDropdowns('farmerStateMobile', 'farmerDistrictMobile');
+    
+    // Load states data
+    function loadStatesData() {
+        // You can replace this with actual fetch to your states-and-districts.json
+        fetch('/static/states-and-districts.json')
+        .then(response => response.json())
+        .then(data => {
+         // Convert your JSON structure to the expected format
+        statesData = {};
+         data.states.forEach(stateObj => {
+        statesData[stateObj.state] = stateObj.districts;
+         });
+   
+            populateStates();
+        })
+        .catch(error => {
+            console.error('Error loading states data:', error);
+            // Fallback data
+            statesData = {
+                "Andhra Pradesh": ["Anantapur", "Chittoor", "East Godavari"],
+                "Karnataka": ["Bangalore Urban", "Belgaum", "Bellary"],
+                "Tamil Nadu": ["Chennai", "Coimbatore", "Cuddalore"]
+            };
+            populateStates();
+        });
+    }
+    
+    function populateStates() {
+        const stateSelects = ['farmerState', 'farmerStateMobile'];
+        stateSelects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            Object.keys(statesData).forEach(state => {
+                const option = document.createElement('option');
+                option.value = state;
+                option.textContent = state;
+                select.appendChild(option);
+            });
+        });
+    }
+    
+    // Form submissions
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        // Handle login logic here
+        console.log('Login submitted');
+        loginModal.classList.remove('active');
+    });
+    
+    document.getElementById('emailSignupForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        // Handle email signup logic here
+        console.log('Email signup submitted');
+        signupModal.classList.remove('active');
+    });
+    
+    document.getElementById('mobileSignupForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        // Handle mobile signup logic here
+        console.log('Mobile signup submitted');
+        signupModal.classList.remove('active');
+    });
+}
         
         function initCountUpAnimations() {
             const counters = document.querySelectorAll('.stat-number');

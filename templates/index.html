@@ -53,6 +53,21 @@
             <i class="fas fa-history"></i>
         </div>
 
+                    <!-- User Avatar Dropdown -->
+            <div class="user-dropdown" id="userDropdown">
+                <div class="user-avatar" id="userAvatar">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="user-menu" id="userMenu">
+                    <div class="user-menu-item" id="loginOption">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </div>
+                    <div class="user-menu-item" id="signupOption">
+                        <i class="fas fa-user-plus"></i> Signup
+                    </div>
+                </div>
+            </div>
+
     </nav>
 
     <!-- Memory Sidebar -->
@@ -567,6 +582,122 @@
         </div>
     </div>
 </div>
+<!-- Login Modal -->
+<div class="auth-modal" id="loginModal">
+    <div class="auth-modal-content">
+        <div class="auth-modal-header">
+            <h3>Login to Krishi Mitra</h3>
+            <button class="auth-close-btn" id="closeLoginModal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="auth-modal-body">
+            <form id="loginForm">
+                <div class="auth-form-group">
+                    <label for="loginEmailMobile">Email or Mobile Number</label>
+                    <input type="text" id="loginEmailMobile" placeholder="Enter email or mobile number" required>
+                </div>
+                <div class="auth-form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter password" required>
+                </div>
+                <div class="auth-buttons">
+                    <button type="button" class="auth-btn auth-btn-secondary" id="cancelLogin">Cancel</button>
+                    <button type="submit" class="auth-btn auth-btn-primary">Login</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
+<!-- Signup Modal -->
+<div class="auth-modal" id="signupModal">
+    <div class="auth-modal-content">
+        <div class="auth-modal-header">
+            <h3>Join Krishi Mitra</h3>
+            <button class="auth-close-btn" id="closeSignupModal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="auth-modal-body">
+            <div class="signup-options">
+                <div class="signup-option" data-type="email">
+                    <i class="fas fa-envelope"></i> Signup with Email
+                </div>
+                <div class="signup-option" data-type="mobile">
+                    <i class="fas fa-mobile-alt"></i> Signup with Mobile (OTP)
+                </div>
+            </div>
+            
+            <form class="signup-form" id="emailSignupForm">
+                <div class="auth-form-group">
+                    <label for="signupEmail">Email Address</label>
+                    <input type="email" id="signupEmail" placeholder="Enter your email" required>
+                </div>
+                <div class="auth-form-group">
+                    <label for="signupPassword">Password</label>
+                    <input type="password" id="signupPassword" placeholder="Create password" required>
+                </div>
+                <div class="auth-form-group">
+                    <label for="farmerName">Full Name</label>
+                    <input type="text" id="farmerName" placeholder="Enter your full name" required>
+                </div>
+                <div class="auth-form-group">
+                    <label for="farmerState">State</label>
+                    <select id="farmerState" required>
+                        <option value="">Select State</option>
+                    </select>
+                </div>
+                <div class="auth-form-group">
+                    <label for="farmerDistrict">District</label>
+                    <select id="farmerDistrict" required>
+                        <option value="">Select District</option>
+                    </select>
+                </div>
+                <div class="auth-form-group">
+                    <label for="farmingType">Type of Farming</label>
+                    <select id="farmingType" required>
+                        <option value="">Select farming type</option>
+                        <option value="crops">Crops</option>
+                        <option value="horticulture">Horticulture</option>
+                        <option value="livestock">Livestock</option>
+                        <option value="mixed">Mixed Farming</option>
+                    </select>
+                </div>
+                <div class="auth-buttons">
+                    <button type="button" class="auth-btn auth-btn-secondary" id="cancelSignup">Cancel</button>
+                    <button type="submit" class="auth-btn auth-btn-primary">Create Account</button>
+                </div>
+            </form>
+            
+            <form class="signup-form" id="mobileSignupForm">
+                <div class="auth-form-group">
+                    <label for="signupMobile">Mobile Number</label>
+                    <input type="tel" id="signupMobile" placeholder="Enter your mobile number" required>
+                </div>
+                <div class="auth-form-group">
+                    <label for="farmerNameMobile">Full Name</label>
+                    <input type="text" id="farmerNameMobile" placeholder="Enter your full name" required>
+                </div>
+                <div class="auth-form-group">
+                    <label for="farmerStateMobile">State</label>
+                    <select id="farmerStateMobile" required>
+                        <option value="">Select State</option>
+                    </select>
+                </div>
+                <div class="auth-form-group">
+                    <label for="farmerDistrictMobile">District</label>
+                    <select id="farmerDistrictMobile" required>
+                        <option value="">Select District</option>
+                    </select>
+                </div>
+                <div class="auth-buttons">
+                    <button type="button" class="auth-btn auth-btn-secondary" id="cancelSignupMobile">Cancel</button>
+                    <button type="submit" class="auth-btn auth-btn-primary">Send OTP</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 </body>
 </html>
