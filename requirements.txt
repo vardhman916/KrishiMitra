@@ -57,6 +57,7 @@ google-auth-oauthlib         # For OAuth
 google-auth-httplib2         # For HTTP transport
 
 wikibase-rest-api-client
+sarvamai
 
 
 

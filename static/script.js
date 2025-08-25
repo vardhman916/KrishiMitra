@@ -1,4 +1,29 @@
-// Loading Screen Management
+// Add these helper functions at the top of your JavaScript:
+let currentAudioElement = null;
+
+function detectTextLanguage(text) {
+    // Simple language detection based on script
+    const hindiPattern = /[\u0900-\u097F]/;
+    const tamilPattern = /[\u0B80-\u0BFF]/;
+    const bengaliPattern = /[\u0980-\u09FF]/;
+    
+    if (hindiPattern.test(text)) return 'hi';        
+    if (tamilPattern.test(text)) return 'ta';
+    if (bengaliPattern.test(text)) return 'bn';
+    
+    return 'en'; // default to English
+}
+
+function base64ToBlob(base64, mimeType) {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
+}
+
 
 // Loading Screen Management
 document.addEventListener('DOMContentLoaded', function() {
@@ -543,49 +568,75 @@ function initChatInterface() {
     }
 
     // Toggle audio playback with play/pause functionality
-    function toggleAudio(text, button) {
-        if ('speechSynthesis' in window) {
-            if (currentUtterance && !speechSynthesis.paused) {
-                // Currently playing - stop it
-                speechSynthesis.cancel();
+async function toggleAudio(text, button) {
+    if (currentUtterance && button.classList.contains('playing')) {
+        // Stop current playback
+        if (currentAudioElement) {
+            currentAudioElement.pause();
+            currentAudioElement = null;
+        }
+        button.innerHTML = '<i class="fas fa-play"></i>';
+        button.classList.remove('playing');
+        currentUtterance = null;
+        return;
+    }
+
+
+    try {
+        // Detect language (simple detection)
+        const detectedLang = detectTextLanguage(text);
+       
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+
+
+        // Call backend for Sarvam AI TTS
+        const response = await fetch('/generate_audio', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: text,
+                language: detectedLang
+            })
+        });
+
+
+        const data = await response.json();
+
+
+        if (data.success && data.audio_data) {
+            // Create audio element from base64
+            const audioBlob = base64ToBlob(data.audio_data, 'audio/wav');
+            const audioUrl = URL.createObjectURL(audioBlob);
+           
+            currentAudioElement = new Audio(audioUrl);
+           
+            button.innerHTML = '<i class="fas fa-pause"></i>';
+            button.classList.add('playing');
+            button.disabled = false;
+           
+            currentAudioElement.play();
+           
+            currentAudioElement.onended = () => {
                 button.innerHTML = '<i class="fas fa-play"></i>';
                 button.classList.remove('playing');
-                button.setAttribute('aria-label', 'Play audio response');
-                currentUtterance = null;
-            } else {
-                // Start playing
-                speechSynthesis.cancel(); // Cancel any existing speech
-                
-                currentUtterance = new SpeechSynthesisUtterance(text);
-                currentUtterance.rate = 0.8;
-                currentUtterance.pitch = 1;
-                currentUtterance.volume = 0.8;
-                
-                button.innerHTML = '<i class="fas fa-pause"></i>';
-                button.classList.add('playing');
-                button.setAttribute('aria-label', 'Stop audio playback');
-                
-                currentUtterance.onend = () => {
-                    button.innerHTML = '<i class="fas fa-play"></i>';
-                    button.classList.remove('playing');
-                    button.setAttribute('aria-label', 'Play audio response');
-                    currentUtterance = null;
-                };
-                
-                currentUtterance.onerror = () => {
-                    button.innerHTML = '<i class="fas fa-play"></i>';
-                    button.classList.remove('playing');
-                    button.setAttribute('aria-label', 'Play audio response');
-                    currentUtterance = null;
-                    console.error('Speech synthesis error');
-                };
-                
-                speechSynthesis.speak(currentUtterance);
-            }
+                URL.revokeObjectURL(audioUrl);
+                currentAudioElement = null;
+            };
+           
         } else {
-            console.warn('Speech synthesis not supported');
+            throw new Error(data.error || 'Audio generation failed');
         }
+       
+    } catch (error) {
+        console.error('TTS Error:', error);
+        button.innerHTML = '<i class="fas fa-play"></i>';
+        button.disabled = false;
+        button.classList.remove('playing');
     }
+}
 
     console.log('Chat interface and language selector initialized');
 
@@ -595,6 +646,7 @@ function initChatInterface() {
 
 // Initialize Memory Sidebar
     initMemorySidebar();
+    initAuthSystem();
     
     console.log('Chat interface, language selector, and memory sidebar initialized');
 }
@@ -968,6 +1020,164 @@ function initMemorySidebar() {
     }
 }
 
+
+function initAuthSystem() {
+    const userAvatar = document.getElementById('userAvatar');
+    const userMenu = document.getElementById('userMenu');
+    const loginOption = document.getElementById('loginOption');
+    const signupOption = document.getElementById('signupOption');
+    const loginModal = document.getElementById('loginModal');
+    const signupModal = document.getElementById('signupModal');
+    
+    // Load states and districts data
+    let statesData = {};
+    loadStatesData();
+    
+    // Avatar dropdown toggle
+    userAvatar.addEventListener('click', (e) => {
+        e.stopPropagation();
+        userMenu.classList.toggle('active');
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', () => {
+        userMenu.classList.remove('active');
+    });
+    
+    // Login option
+    loginOption.addEventListener('click', () => {
+        userMenu.classList.remove('active');
+        loginModal.classList.add('active');
+    });
+    
+    // Signup option
+    signupOption.addEventListener('click', () => {
+        userMenu.classList.remove('active');
+        signupModal.classList.add('active');
+    });
+    
+    // Close modals
+    document.getElementById('closeLoginModal').addEventListener('click', () => {
+        loginModal.classList.remove('active');
+    });
+    
+    document.getElementById('closeSignupModal').addEventListener('click', () => {
+        signupModal.classList.remove('active');
+    });
+    
+    document.getElementById('cancelLogin').addEventListener('click', () => {
+        loginModal.classList.remove('active');
+    });
+    
+    document.getElementById('cancelSignup').addEventListener('click', () => {
+        signupModal.classList.remove('active');
+    });
+    
+    document.getElementById('cancelSignupMobile').addEventListener('click', () => {
+        signupModal.classList.remove('active');
+    });
+    
+    // Signup option selection
+    document.querySelectorAll('.signup-option').forEach(option => {
+        option.addEventListener('click', () => {
+            document.querySelectorAll('.signup-option').forEach(opt => opt.classList.remove('selected'));
+            option.classList.add('selected');
+            
+            const type = option.getAttribute('data-type');
+            document.querySelectorAll('.signup-form').forEach(form => form.classList.remove('active'));
+            
+            if (type === 'email') {
+                document.getElementById('emailSignupForm').classList.add('active');
+            } else {
+                document.getElementById('mobileSignupForm').classList.add('active');
+            }
+        });
+    });
+    
+    // State-District handling
+    function setupStateDistrictDropdowns(stateId, districtId) {
+        const stateSelect = document.getElementById(stateId);
+        const districtSelect = document.getElementById(districtId);
+        
+        stateSelect.addEventListener('change', () => {
+            const selectedState = stateSelect.value;
+            districtSelect.innerHTML = '<option value="">Select District</option>';
+            
+            if (selectedState && statesData[selectedState]) {
+                statesData[selectedState].forEach(district => {
+                    const option = document.createElement('option');
+                    option.value = district;
+                    option.textContent = district;
+                    districtSelect.appendChild(option);
+                });
+            }
+        });
+    }
+    
+    setupStateDistrictDropdowns('farmerState', 'farmerDistrict');
+    setupStateDistrictDropdowns('farmerStateMobile', 'farmerDistrictMobile');
+    
+    // Load states data
+    function loadStatesData() {
+        // You can replace this with actual fetch to your states-and-districts.json
+        fetch('/static/states-and-districts.json')
+        .then(response => response.json())
+        .then(data => {
+         // Convert your JSON structure to the expected format
+        statesData = {};
+         data.states.forEach(stateObj => {
+        statesData[stateObj.state] = stateObj.districts;
+         });
+   
+            populateStates();
+        })
+        .catch(error => {
+            console.error('Error loading states data:', error);
+            // Fallback data
+            statesData = {
+                "Andhra Pradesh": ["Anantapur", "Chittoor", "East Godavari"],
+                "Karnataka": ["Bangalore Urban", "Belgaum", "Bellary"],
+                "Tamil Nadu": ["Chennai", "Coimbatore", "Cuddalore"]
+            };
+            populateStates();
+        });
+    }
+    
+    function populateStates() {
+        const stateSelects = ['farmerState', 'farmerStateMobile'];
+        stateSelects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            Object.keys(statesData).forEach(state => {
+                const option = document.createElement('option');
+                option.value = state;
+                option.textContent = state;
+                select.appendChild(option);
+            });
+        });
+    }
+    
+    // Form submissions
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        // Handle login logic here
+        console.log('Login submitted');
+        loginModal.classList.remove('active');
+    });
+    
+    document.getElementById('emailSignupForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        // Handle email signup logic here
+        console.log('Email signup submitted');
+        signupModal.classList.remove('active');
+    });
+    
+    document.getElementById('mobileSignupForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        // Handle mobile signup logic here
+        console.log('Mobile signup submitted');
+        signupModal.classList.remove('active');
+    });
+}
         
         function initCountUpAnimations() {
             const counters = document.querySelectorAll('.stat-number');

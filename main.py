@@ -1,3 +1,6 @@
+from sarvamai import SarvamAI
+import base64
+import io
 import itertools
 from flask import Flask, render_template, request, jsonify
 import os
@@ -13,6 +16,7 @@ from tools.Pest_info import combined_Pest_tool
 from tools.other_information import crop_cultivation_tool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import initialize_agent, AgentType
+
 from langchain_core.prompts import PromptTemplate
 from STT import LanguageSwitchingSTT, MicrophoneStream, RATE, CHUNK
 from google.cloud import speech
@@ -25,8 +29,37 @@ import re
 import time
 from langdetect import detect, LangDetectException
 
+# Initialize Sarvam AI client
+sarvam_client = SarvamAI(
+    api_subscription_key=os.getenv("SARVAM_API_KEY")
+)
+
+# Language code mapping for Sarvam AI
+SARVAM_LANGUAGE_MAP = {
+    'hi': 'hi-IN',
+    'en': 'en-IN', 
+    'ta': 'ta-IN',
+    'te': 'te-IN',
+    'bn': 'bn-IN',
+    'mr': 'mr-IN',
+    'gu': 'gu-IN',
+    'kn': 'kn-IN',
+    'ml': 'ml-IN',
+    'pa': 'pa-IN',
+    'or': 'or-IN'
+}
+
+
 # Load environment variables
 load_dotenv()
+
+
+# Quick API key check (using print since logger not ready yet)
+api_key = os.getenv("SARVAM_API_KEY")
+if api_key:
+    print(f"✅ Sarvam API Key loaded successfully: {api_key[:10]}...")
+else:
+    print("❌ Sarvam API Key not found in .env file")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,10 +74,64 @@ translator = Translator()
 
 
 
+import re
+from langdetect import detect, DetectorFactory, LangDetectException
+import logging
 
+logger = logging.getLogger(__name__)
+DetectorFactory.seed = 0  # Makes langdetect deterministic
 
 
 def detect_language_robust(text):
+    """Robust language detection with multiple fallbacks for Indian languages"""
+    try:
+        # Expanded regex to cover all Indic scripts + Urdu/Arabic
+        cleaned_text = re.sub(
+            r'[^\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F\u0A80-\u0AFF'
+            r'\u0B00-\u0B7F\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF'
+            r'\u0D00-\u0D7F\u0D80-\u0DFF\u0600-\u06FF\w\s]',
+            '',
+            text
+        ).strip()
+        
+        if len(cleaned_text) < 3:
+            return "en"
+        
+        # Try langdetect
+        detected = detect(cleaned_text)
+        
+        lang_mapping = {
+            'hi': 'hi', 'en': 'en', 'ta': 'ta', 'te': 'te',
+            'bn': 'bn', 'mr': 'mr', 'gu': 'gu', 'kn': 'kn',
+            'ml': 'ml', 'pa': 'pa', 'ur': 'ur'
+        }
+        
+        return lang_mapping.get(detected, 'en')
+    
+    except (LangDetectException, Exception) as e:
+        logger.warning(f"Language detection failed: {e}")
+
+        # --- Fallback Patterns ---
+        patterns = {
+            'hi': ['है', 'में', 'का', 'की', 'को', 'से', 'पर', 'और', 'या'],
+            'bn': ['কেমন', 'আমি', 'তুমি', 'সে', 'এই', 'ওই', 'কি'],
+            'pa': ['ਹੈ', 'ਤੇ', 'ਦਾ', 'ਦੀ', 'ਦੇ', 'ਨੂੰ', 'ਅਤੇ'],
+            'mr': ['आहे', 'मध्ये', 'चा', 'ची', 'किंवा', 'आणि'],
+            'gu': ['છે', 'અને', 'કરવું', 'કે', 'ના', 'હું', 'તું'],
+            'kn': ['ಇದು', 'ಮತ್ತು', 'ಅಥವಾ', 'ಹೆಚ್ಚು', 'ಹೆಸರು'],
+            'ta': ['இது', 'அவர்', 'என்', 'உன்', 'மற்றும்', 'அல்லது'],
+            'te': ['అది', 'మరియు', 'లేదా', 'నేను', 'నువ్వు'],
+            'ml': ['ആണ്', 'എന്ന്', 'എനിക്ക്', 'നിങ്ങൾ', 'അഥവാ'],
+            'ur': ['ہے', 'میں', 'اور', 'یا', 'کے', 'سے', 'پر'],
+            'en': ['the', 'is', 'and', 'or', 'to', 'of']
+        }
+
+        for lang, words in patterns.items():
+            if any(word in text for word in words):
+                return lang
+        
+        return 'en'
+
     """Robust language detection with multiple fallbacks"""
     try:
         # Clean the text first
@@ -82,6 +169,7 @@ def detect_language_robust(text):
         
         # Default to English
         return 'en'
+
 
 def safe_translate(text, src_lang, dest_lang, max_retries=2):
     """Safe translation with retry logic"""
@@ -229,55 +317,6 @@ def clean_response_simple(response):
     return response.strip()
 
 
-
-
-
-
-
-# Updated summarization prompt without emoticons
-# summary_prompt_template = """
-# You are **Krishi Mitra**, a helpful and friendly agricultural assistant for farmers in India.
-
-# Below is information collected from multiple trusted sources:
-# {results}
-
-# Your job is to summarize and present this information in a clear, short with full information, and easy-to-understand format for a farmer with basic education.
-
-# Follow these rules strictly:
-# 1. Identify which of these categories the farmer's question relates to:  
-#    - 🌤 Weather Update" (max 4 short bullet points)  
-#    - 💰 Government Schemes" (max 2 short bullet points)  
-#    - 🌱 Farming Advice" (max 3 short bullet points, only if relevant)   
-# 2. Include ONLY the categories the farmer asked about.  
-# 3. If the farmer asked about multiple topics, include all relevant categories.  
-# 4. Do NOT add "No update available" for categories that were not asked about.  
-# 5. Use farmer-friendly, simple language  
-# 6. Each point must be clear, short, and actionable today.  
-# 7. Weather alerts come first if included, then schemes, then farming advice.  
-# 8. Remove any repeated or unnecessary details.  
-# 9. No emoticons, asterisks, or special symbols.  
-# 10. Language handling rule (very important):  
-#     - Detect the input language of the farmer’s question (whether text or converted from voice).  
-#     - First generate the response in English internally.  
-#     - Then translate the full response into the detected input language.  
-#     - Only show the translated response to the farmer.  
-#     - The farmer should never see the English version.  
-#     - Always preserve the meaning and tone when translating.  
-# 11. Before giving the final answer, check the response carefully and reduce or remove any repetitions so the farmer gets concise, unique, and clear information.
-
-
-# Output Format Example:
-# 🌤 **Weather Update**  
-# - Rain expected in the next 24 hours in [region].  
-# - Temperature around 28°C; humidity high.
-
-# 💰 **Government Schemes**  
-# - Apply for the PM-Kisan scheme online before [date].  
-
-# 🌱 **Farming Advice**  
-# - Avoid watering wheat crops today due to rainfall forecast.
-# """
-
 summary_prompt_template = """
 You are **Krishi Mitra**, a helpful agricultural assistant for farmers.
 
@@ -317,97 +356,6 @@ Rules:
 
 Respond in the same language as the user's question.
 """
-
-
-
-
-# def process_query(user_query):
-#     """Handles multi-language input, processes query, and returns farmer-friendly summary."""
-#     try:
-#         if agent is None:
-#             logger.error("Agent not initialized")
-#             return "I'm sorry, the system is not ready. Please try again later."
-        
-#         # Store conversation in memory
-#         if 'conversation_history' not in session:
-#             session['conversation_history'] = []
-        
-#         # Add user query to conversation history
-#         session['conversation_history'].append({
-#             'type': 'user',
-#             'content': user_query[:100],  # Limit length
-#             'timestamp': time.time()
-#         })
-
-
-
-#         # Detect language
-#         lang_code = detect_language_robust(user_query)
-#         logger.info(f"Detected language: {lang_code}")
-
-#         # Translate to English for agent if needed
-#         query_en = user_query
-#         if lang_code != "en":
-#             query_en = safe_translate(user_query, lang_code, "en")
-#             logger.info(f"Translated query: {query_en}")
-
-#         # Process with agent
-#         try:
-#             raw_result = agent.invoke(query_en)
-            
-#             # ADD CLEANING HERE - Clean the agent response immediately
-#             if hasattr(raw_result, 'content'):
-#                 cleaned_result = clean_response_simple(raw_result.content)
-#             elif isinstance(raw_result, str):
-#                 cleaned_result = clean_response_simple(raw_result)
-#             else:
-#                 cleaned_result = clean_response_simple(str(raw_result))
-            
-#             logger.info("Agent processing completed")
-#         except Exception as e:
-#             logger.error(f"Agent processing failed: {e}")
-#             return "I'm sorry, I couldn't process your request right now. Please try again later."
-
-#         # Create summary
-#         if llm1 is None:
-#             logger.error("Summary LLM not available")
-#             return "I'm sorry, I couldn't generate a summary. Please try again later."
-
-#         try:
-#             summary_prompt = PromptTemplate(
-#                 input_variables=["results"],
-#                 template=summary_prompt_template
-#             )
-
-#             # Use the cleaned result instead of raw_result
-#             summary_response = llm1.invoke(summary_prompt.format(results=cleaned_result))
-#             summary_en = summary_response.content
-            
-#             # Clean the summary response
-#             summary_en = clean_response_simple(summary_en)  # First remove debugging
-#             summary_en = clean_response_text(summary_en)    # Then remove formatting
-            
-#             logger.info("Summary generated")
-
-#         except Exception as e:
-#             logger.error(f"Summary generation failed: {e}")
-#             return "I'm sorry, I couldn't generate a proper summary. Please try again later."
-
-#         # Translate back to original language if needed
-#         summary_final = summary_en
-#         if lang_code != "en":
-#             summary_final = safe_translate(summary_en, "en", lang_code)
-#             logger.info(f"Response translated back to {lang_code}")
-#             # Clean the translated text as well
-#             summary_final = clean_response_text(summary_final)
-
-#     # Remove repetitions in the final summary
-#         summary_final = remove_repetitions(summary_final)
-#         return summary_final
-
-#     except Exception as e:
-#         logger.error(f"Error processing query: {e}")
-#         return "I'm sorry, I encountered an error while processing your request. Please try again later."
 
 def process_query(user_query):
     """Handles multi-language input, processes query, and returns farmer-friendly summary with memory."""
@@ -523,6 +471,154 @@ def process_query(user_query):
         logger.error(f"Error processing query: {e}")
         return "I'm sorry, I encountered an error while processing your request. Please try again later."
 
+def generate_audio_response(text, language_code):
+    """Generate audio using Sarvam AI TTS with chunking for long text"""
+    try:
+        # Map language code to Sarvam format
+        sarvam_lang = SARVAM_LANGUAGE_MAP.get(language_code, 'hi-IN')
+        
+        # Define chunk size (Sarvam typically supports ~500-1000 characters)
+        MAX_CHUNK_SIZE = 500
+        
+        # If text is short enough, process normally
+        if len(text) <= MAX_CHUNK_SIZE:
+            return generate_single_audio_chunk(text, sarvam_lang)
+        
+        # Split long text into chunks
+        chunks = split_text_into_chunks(text, MAX_CHUNK_SIZE)
+        logger.info(f"Split text into {len(chunks)} chunks")
+        
+        # Generate audio for each chunk
+        audio_chunks = []
+        for i, chunk in enumerate(chunks):
+            logger.info(f"Processing chunk {i+1}/{len(chunks)}: {chunk[:50]}...")
+            
+            chunk_audio = generate_single_audio_chunk(chunk.strip(), sarvam_lang)
+            if chunk_audio:
+                audio_chunks.append(chunk_audio)
+            else:
+                logger.error(f"Failed to generate audio for chunk {i+1}")
+        
+        if not audio_chunks:
+            logger.error("No audio chunks were generated")
+            return None
+        
+        # If only one chunk, return it directly
+        if len(audio_chunks) == 1:
+            return audio_chunks[0]
+        
+        # Combine multiple audio chunks
+        try:
+            combined_audio = combine_audio_chunks(audio_chunks)
+            logger.info("✅ Combined audio generated successfully")
+            return combined_audio
+        except Exception as e:
+            logger.error(f"Error combining audio chunks: {e}")
+            # Fallback: return first chunk
+            return audio_chunks[0]
+        
+    except Exception as e:
+        logger.error(f"TTS generation failed: {e}")
+        return None
+
+def generate_single_audio_chunk(text, sarvam_lang):
+    """Generate audio for a single text chunk"""
+    try:
+        response = sarvam_client.text_to_speech.convert(
+            text=text,
+            target_language_code=sarvam_lang,
+            speaker="karun",
+            pitch=0,
+            pace=1,
+            loudness=1,
+            speech_sample_rate=22050,
+            enable_preprocessing=True,
+            model="bulbul:v2"
+        )
+        
+        # The correct attribute is 'audios'
+        if hasattr(response, 'audios') and response.audios:
+            # audios is likely a list, so take the first one
+            audio_data = response.audios[0] if isinstance(response.audios, list) else response.audios
+            
+            # Handle different audio data formats
+            if isinstance(audio_data, str):
+                # Already base64 encoded string
+                return audio_data
+            elif isinstance(audio_data, bytes):
+                # Convert bytes to base64
+                return base64.b64encode(audio_data).decode('utf-8')
+            else:
+                logger.error(f"Unexpected audio data type: {type(audio_data)}")
+                return None
+        else:
+            logger.error("No audio data found in response.audios")
+            return None
+        
+    except Exception as e:
+        logger.error(f"Single chunk TTS generation failed: {e}")
+        return None
+
+def split_text_into_chunks(text, max_size):
+    """Split text into chunks while preserving sentence boundaries"""
+    # Split by sentences first
+    sentences = re.split(r'[।|।|.|!|?|\n]', text)
+    
+    chunks = []
+    current_chunk = ""
+    
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+            
+        # If adding this sentence exceeds max size, start new chunk
+        if current_chunk and len(current_chunk + " " + sentence) > max_size:
+            if current_chunk:
+                chunks.append(current_chunk)
+                current_chunk = sentence
+            else:
+                # Single sentence is too long, split by words
+                words = sentence.split()
+                for word in words:
+                    if len(current_chunk + " " + word) > max_size:
+                        if current_chunk:
+                            chunks.append(current_chunk)
+                            current_chunk = word
+                        else:
+                            # Single word is too long, force it
+                            chunks.append(word)
+                    else:
+                        current_chunk += " " + word if current_chunk else word
+        else:
+            current_chunk += " " + sentence if current_chunk else sentence
+    
+    if current_chunk:
+        chunks.append(current_chunk)
+    
+    return chunks
+
+def combine_audio_chunks(audio_chunks):
+    """Combine multiple base64 audio chunks into one"""
+    try:
+        # Since we're dealing with base64 strings, we need to decode them,
+        # combine the binary data, then re-encode
+        
+        combined_audio_bytes = b""
+        
+        for audio_b64 in audio_chunks:
+            # Decode base64 to bytes
+            audio_bytes = base64.b64decode(audio_b64)
+            combined_audio_bytes += audio_bytes
+        
+        # Re-encode combined audio to base64
+        combined_b64 = base64.b64encode(combined_audio_bytes).decode('utf-8')
+        return combined_b64
+        
+    except Exception as e:
+        logger.error(f"Error combining audio chunks: {e}")
+        # Fallback: return first chunk
+        return audio_chunks[0] if audio_chunks else None
 
 def run_voice_mode():
     """Captures speech using Google STT and returns transcription."""
@@ -587,8 +683,6 @@ def run_voice_mode():
         logger.error(f"Error in voice mode: {e}")
         return ""
 
-
-
 def remove_repetitions(text):
     """Remove consecutive repeated words and short phrases from text (works for all languages)."""
     # Remove repeated words (e.g., 'लिए लिए लिए' -> 'लिए')
@@ -602,13 +696,6 @@ def remove_repetitions(text):
         if not new_lines or line.strip() != new_lines[-1].strip():
             new_lines.append(line)
     return '\n'.join(new_lines)
-
-
-
-
-
-
-
 
 
 # Initialize systems on startup
@@ -629,14 +716,38 @@ def initialize_systems():
     logger.info("All systems initialized successfully")
     return True
     
-# ---- Flask Routes ----
-# from flask import Flask, request, jsonify, render_template, session
-# import os
-# from main import *
 @app.route('/')
 def index():
     """Serve the main HTML page"""
     return render_template('index.html')
+
+@app.route('/generate_audio', methods=['POST'])
+def handle_generate_audio():
+    """Generate audio for text"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        language = data.get('language', 'hi')
+        
+        if not text:
+            return jsonify({'success': False, 'error': 'No text provided'})
+        
+        audio_data = generate_audio_response(text, language)
+        
+        if audio_data:
+            return jsonify({
+                'success': True,
+                'audio_data': audio_data
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Audio generation failed'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in generate_audio route: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/set_language', methods=['POST'])
 def set_language():
@@ -677,10 +788,15 @@ def handle_process_query():
         
         # Process the query
         response = process_query(user_query)
+        # Generate audio for the response
+        detected_lang = detect_language_robust(user_query)
+        audio_data = generate_audio_response(response, detected_lang)
         
         return jsonify({
             'success': True,
             'response': response,
+            'audio_data': audio_data,
+            'language': detected_lang,
             'mode': mode
         })
 
@@ -795,12 +911,7 @@ def clear_memory():
         logger.error(f"Error clearing memory: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/health', methods=['GET'])  # ← This line should already exist
-
-
-
-
-
+# @app.route('/health', methods=['GET'])  # ← This line should already exist
 
 
 @app.route('/health', methods=['GET'])
