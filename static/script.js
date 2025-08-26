@@ -1,29 +1,4 @@
-// Add these helper functions at the top of your JavaScript:
-let currentAudioElement = null;
-
-function detectTextLanguage(text) {
-    // Simple language detection based on script
-    const hindiPattern = /[\u0900-\u097F]/;
-    const tamilPattern = /[\u0B80-\u0BFF]/;
-    const bengaliPattern = /[\u0980-\u09FF]/;
-    
-    if (hindiPattern.test(text)) return 'hi';        
-    if (tamilPattern.test(text)) return 'ta';
-    if (bengaliPattern.test(text)) return 'bn';
-    
-    return 'en'; // default to English
-}
-
-function base64ToBlob(base64, mimeType) {
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    return new Blob([byteArray], { type: mimeType });
-}
-
+// Loading Screen Management
 
 // Loading Screen Management
 document.addEventListener('DOMContentLoaded', function() {
@@ -52,7 +27,19 @@ document.addEventListener('DOMContentLoaded', function() {
             initNavigation();
             initChatInterface();
             initCountUpAnimations();
-             initScrollableSections();
+            initScrollableSections();
+            
+            // Initialize user avatar
+            const userAvatar = document.getElementById('userAvatar');
+            if (userAvatar) {
+                userAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+                userAvatar.addEventListener('click', function() {
+                    const loginModal = document.getElementById('loginModal');
+                    if (loginModal) {
+                        loginModal.classList.add('active');
+                    }
+                });
+            }
         }
 
         // Particle System
@@ -156,6 +143,9 @@ function initChatInterface() {
     const responseContent = document.getElementById('responseContent');
     const textModeBtn = document.getElementById('textMode');
     const voiceModeBtn = document.getElementById('voiceMode');
+    
+    // Initialize authentication UI
+    initAuthenticationUI();
 
     const imageModeBtn = document.getElementById('imageMode');
     const imageModeContainer = document.getElementById('imageModeContainer');
@@ -343,11 +333,13 @@ function initChatInterface() {
         currentMode = 'text';
         textModeBtn.classList.add('active');
         voiceModeBtn.classList.remove('active');
+        imageModeBtn.classList.remove('active');
         
         // Show input container, hide central mic
         inputContainer.style.display = 'flex';
         inputContainer.classList.remove('voice-mode');
         centralMicContainer.classList.remove('active');
+        imageModeContainer.classList.remove('active');
         
         chatInput.placeholder = "Ask me about farming, weather, crops, market prices...";
         processingStatus.textContent = '';
@@ -365,11 +357,13 @@ function initChatInterface() {
         currentMode = 'voice';
         voiceModeBtn.classList.add('active');
         textModeBtn.classList.remove('active');
+        imageModeBtn.classList.remove('active');
         
         // Hide input container, show central mic
         inputContainer.style.display = 'none';
         inputContainer.classList.add('voice-mode');
         centralMicContainer.classList.add('active');
+        imageModeContainer.classList.remove('active');
         
         // Show/enable language selector
         updateLanguageSelectorVisibility('voice');
@@ -521,6 +515,12 @@ function initChatInterface() {
             
             if (data.success) {
                 showResponse(data.response);
+
+                // Auto-play audio for voice mode responses
+                if (mode === 'voice' && data.audio_data) {
+                    playAutoAudio(data.audio_data);
+                }
+                
             } else {
                 showResponse("Sorry, I encountered an error processing your request. Please try again.");
             }
@@ -567,77 +567,142 @@ function initChatInterface() {
         responseContent.appendChild(audioButton);
     }
 
-    // Toggle audio playback with play/pause functionality
-async function toggleAudio(text, button) {
-    if (currentUtterance && button.classList.contains('playing')) {
-        // Stop current playback
-        if (currentAudioElement) {
-            currentAudioElement.pause();
-            currentAudioElement = null;
-        }
+    // function toggleAudio(text, button) {
+    //     if ('speechSynthesis' in window) {
+    //         if (currentUtterance && !speechSynthesis.paused) {
+    //             // Currently playing - stop it
+    //             speechSynthesis.cancel();
+    //             button.innerHTML = '<i class="fas fa-play"></i>';
+    //             button.classList.remove('playing');
+    //             button.setAttribute('aria-label', 'Play audio response');
+    //             currentUtterance = null;
+    //         } else {
+    //             // Start playing
+    //             speechSynthesis.cancel(); // Cancel any existing speech
+                
+    //             currentUtterance = new SpeechSynthesisUtterance(text);
+    //             currentUtterance.rate = 0.8;
+    //             currentUtterance.pitch = 1;
+    //             currentUtterance.volume = 0.8;
+                
+    //             button.innerHTML = '<i class="fas fa-pause"></i>';
+    //             button.classList.add('playing');
+    //             button.setAttribute('aria-label', 'Stop audio playback');
+                
+    //             currentUtterance.onend = () => {
+    //                 button.innerHTML = '<i class="fas fa-play"></i>';
+    //                 button.classList.remove('playing');
+    //                 button.setAttribute('aria-label', 'Play audio response');
+    //                 currentUtterance = null;
+    //             };
+                
+    //             currentUtterance.onerror = () => {
+    //                 button.innerHTML = '<i class="fas fa-play"></i>';
+    //                 button.classList.remove('playing');
+    //                 button.setAttribute('aria-label', 'Play audio response');
+    //                 currentUtterance = null;
+    //                 console.error('Speech synthesis error');
+    //             };
+                
+    //             speechSynthesis.speak(currentUtterance);
+    //         }
+    //     } else {
+    //         console.warn('Speech synthesis not supported');
+    //     }
+    // }
+
+    function toggleAudio(text, button) {
+    if (window.currentAudio && !window.currentAudio.paused) {
+        // Currently playing - stop it
+        window.currentAudio.pause();
+        window.currentAudio.currentTime = 0;
         button.innerHTML = '<i class="fas fa-play"></i>';
         button.classList.remove('playing');
-        currentUtterance = null;
-        return;
-    }
-
-
-    try {
-        // Detect language (simple detection)
-        const detectedLang = detectTextLanguage(text);
-       
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        button.disabled = true;
-
-
-        // Call backend for Sarvam AI TTS
-        const response = await fetch('/generate_audio', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                text: text,
-                language: detectedLang
-            })
-        });
-
-
-        const data = await response.json();
-
-
-        if (data.success && data.audio_data) {
-            // Create audio element from base64
-            const audioBlob = base64ToBlob(data.audio_data, 'audio/wav');
-            const audioUrl = URL.createObjectURL(audioBlob);
-           
-            currentAudioElement = new Audio(audioUrl);
-           
-            button.innerHTML = '<i class="fas fa-pause"></i>';
-            button.classList.add('playing');
-            button.disabled = false;
-           
-            currentAudioElement.play();
-           
-            currentAudioElement.onended = () => {
-                button.innerHTML = '<i class="fas fa-play"></i>';
-                button.classList.remove('playing');
-                URL.revokeObjectURL(audioUrl);
-                currentAudioElement = null;
-            };
-           
-        } else {
-            throw new Error(data.error || 'Audio generation failed');
-        }
-       
-    } catch (error) {
-        console.error('TTS Error:', error);
-        button.innerHTML = '<i class="fas fa-play"></i>';
-        button.disabled = false;
-        button.classList.remove('playing');
+        button.setAttribute('aria-label', 'Play audio response');
+    } else {
+        // Generate and play Sarvam AI audio
+        generateAndPlayAudio(text, button);
     }
 }
 
+function generateAndPlayAudio(text, button) {
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    button.disabled = true;
+    
+    fetch('/generate_audio', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            text: text,
+            language: selectedLanguage.split('-')[0] || 'hi'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.audio_data) {
+            // Play Sarvam AI audio
+            window.currentAudio = new Audio('data:audio/wav;base64,' + data.audio_data);
+            window.currentAudio.volume = 0.8;
+            
+            button.innerHTML = '<i class="fas fa-pause"></i>';
+            button.classList.add('playing');
+            button.setAttribute('aria-label', 'Stop audio playback');
+            button.disabled = false;
+            
+            window.currentAudio.play().catch(e => {
+                console.error('Audio playback failed:', e);
+                fallbackToSpeechSynthesis(text, button);
+            });
+            
+            window.currentAudio.onended = () => {
+                button.innerHTML = '<i class="fas fa-play"></i>';
+                button.classList.remove('playing');
+                button.setAttribute('aria-label', 'Play audio response');
+            };
+        } else {
+            console.log('No Sarvam audio, using fallback');
+            fallbackToSpeechSynthesis(text, button);
+        }
+    })
+    .catch(error => {
+        console.error('Audio generation failed:', error);
+        fallbackToSpeechSynthesis(text, button);
+    });
+}
+
+function fallbackToSpeechSynthesis(text, button) {
+    if ('speechSynthesis' in window) {
+        currentUtterance = new SpeechSynthesisUtterance(text);
+        currentUtterance.rate = 0.8;
+        currentUtterance.pitch = 1;
+        currentUtterance.volume = 0.8;
+        
+        button.innerHTML = '<i class="fas fa-pause"></i>';
+        button.classList.add('playing');
+        button.disabled = false;
+        
+        currentUtterance.onend = () => {
+            button.innerHTML = '<i class="fas fa-play"></i>';
+            button.classList.remove('playing');
+        };
+        
+        speechSynthesis.speak(currentUtterance);
+    }
+}
+
+    function playAutoAudio(audioData) {
+    if (audioData) {
+        try {
+            const audio = new Audio('data:audio/wav;base64,' + audioData);
+            audio.volume = 0.8;
+            audio.play().catch(e => console.error('Auto-play failed:', e));
+        } catch (e) {
+            console.error('Audio creation failed:', e);
+        }
+    }
+}
     console.log('Chat interface and language selector initialized');
 
 
@@ -646,7 +711,6 @@ async function toggleAudio(text, button) {
 
 // Initialize Memory Sidebar
     initMemorySidebar();
-    initAuthSystem();
     
     console.log('Chat interface, language selector, and memory sidebar initialized');
 }
@@ -1020,164 +1084,6 @@ function initMemorySidebar() {
     }
 }
 
-
-function initAuthSystem() {
-    const userAvatar = document.getElementById('userAvatar');
-    const userMenu = document.getElementById('userMenu');
-    const loginOption = document.getElementById('loginOption');
-    const signupOption = document.getElementById('signupOption');
-    const loginModal = document.getElementById('loginModal');
-    const signupModal = document.getElementById('signupModal');
-    
-    // Load states and districts data
-    let statesData = {};
-    loadStatesData();
-    
-    // Avatar dropdown toggle
-    userAvatar.addEventListener('click', (e) => {
-        e.stopPropagation();
-        userMenu.classList.toggle('active');
-    });
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', () => {
-        userMenu.classList.remove('active');
-    });
-    
-    // Login option
-    loginOption.addEventListener('click', () => {
-        userMenu.classList.remove('active');
-        loginModal.classList.add('active');
-    });
-    
-    // Signup option
-    signupOption.addEventListener('click', () => {
-        userMenu.classList.remove('active');
-        signupModal.classList.add('active');
-    });
-    
-    // Close modals
-    document.getElementById('closeLoginModal').addEventListener('click', () => {
-        loginModal.classList.remove('active');
-    });
-    
-    document.getElementById('closeSignupModal').addEventListener('click', () => {
-        signupModal.classList.remove('active');
-    });
-    
-    document.getElementById('cancelLogin').addEventListener('click', () => {
-        loginModal.classList.remove('active');
-    });
-    
-    document.getElementById('cancelSignup').addEventListener('click', () => {
-        signupModal.classList.remove('active');
-    });
-    
-    document.getElementById('cancelSignupMobile').addEventListener('click', () => {
-        signupModal.classList.remove('active');
-    });
-    
-    // Signup option selection
-    document.querySelectorAll('.signup-option').forEach(option => {
-        option.addEventListener('click', () => {
-            document.querySelectorAll('.signup-option').forEach(opt => opt.classList.remove('selected'));
-            option.classList.add('selected');
-            
-            const type = option.getAttribute('data-type');
-            document.querySelectorAll('.signup-form').forEach(form => form.classList.remove('active'));
-            
-            if (type === 'email') {
-                document.getElementById('emailSignupForm').classList.add('active');
-            } else {
-                document.getElementById('mobileSignupForm').classList.add('active');
-            }
-        });
-    });
-    
-    // State-District handling
-    function setupStateDistrictDropdowns(stateId, districtId) {
-        const stateSelect = document.getElementById(stateId);
-        const districtSelect = document.getElementById(districtId);
-        
-        stateSelect.addEventListener('change', () => {
-            const selectedState = stateSelect.value;
-            districtSelect.innerHTML = '<option value="">Select District</option>';
-            
-            if (selectedState && statesData[selectedState]) {
-                statesData[selectedState].forEach(district => {
-                    const option = document.createElement('option');
-                    option.value = district;
-                    option.textContent = district;
-                    districtSelect.appendChild(option);
-                });
-            }
-        });
-    }
-    
-    setupStateDistrictDropdowns('farmerState', 'farmerDistrict');
-    setupStateDistrictDropdowns('farmerStateMobile', 'farmerDistrictMobile');
-    
-    // Load states data
-    function loadStatesData() {
-        // You can replace this with actual fetch to your states-and-districts.json
-        fetch('/static/states-and-districts.json')
-        .then(response => response.json())
-        .then(data => {
-         // Convert your JSON structure to the expected format
-        statesData = {};
-         data.states.forEach(stateObj => {
-        statesData[stateObj.state] = stateObj.districts;
-         });
-   
-            populateStates();
-        })
-        .catch(error => {
-            console.error('Error loading states data:', error);
-            // Fallback data
-            statesData = {
-                "Andhra Pradesh": ["Anantapur", "Chittoor", "East Godavari"],
-                "Karnataka": ["Bangalore Urban", "Belgaum", "Bellary"],
-                "Tamil Nadu": ["Chennai", "Coimbatore", "Cuddalore"]
-            };
-            populateStates();
-        });
-    }
-    
-    function populateStates() {
-        const stateSelects = ['farmerState', 'farmerStateMobile'];
-        stateSelects.forEach(selectId => {
-            const select = document.getElementById(selectId);
-            Object.keys(statesData).forEach(state => {
-                const option = document.createElement('option');
-                option.value = state;
-                option.textContent = state;
-                select.appendChild(option);
-            });
-        });
-    }
-    
-    // Form submissions
-    document.getElementById('loginForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        // Handle login logic here
-        console.log('Login submitted');
-        loginModal.classList.remove('active');
-    });
-    
-    document.getElementById('emailSignupForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        // Handle email signup logic here
-        console.log('Email signup submitted');
-        signupModal.classList.remove('active');
-    });
-    
-    document.getElementById('mobileSignupForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        // Handle mobile signup logic here
-        console.log('Mobile signup submitted');
-        signupModal.classList.remove('active');
-    });
-}
         
         function initCountUpAnimations() {
             const counters = document.querySelectorAll('.stat-number');
@@ -1310,3 +1216,82 @@ function initAuthSystem() {
             }
         `;
         document.head.appendChild(style);
+
+// Authentication UI initialization
+function initAuthenticationUI() {
+    const userAvatar = document.getElementById('userAvatar');
+    const loginModal = document.getElementById('loginModal');
+    const signupModal = document.getElementById('signupModal');
+    const closeLoginModal = document.getElementById('closeLoginModal');
+    const closeSignupModal = document.getElementById('closeSignupModal');
+
+    // Handle avatar click to show login modal
+    if (userAvatar) {
+        userAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+        userAvatar.addEventListener('click', function() {
+            loginModal.classList.add('active');
+        });
+    }
+
+    // Close buttons for modals
+    if (closeLoginModal) {
+        closeLoginModal.innerHTML = '<i class="fas fa-times"></i>';
+        closeLoginModal.addEventListener('click', function() {
+            loginModal.classList.remove('active');
+        });
+    }
+
+    if (closeSignupModal) {
+        closeSignupModal.innerHTML = '<i class="fas fa-times"></i>';
+        closeSignupModal.addEventListener('click', function() {
+            signupModal.classList.remove('active');
+        });
+    }
+
+    // Handle switching between login and signup
+    const signupLink = document.createElement('p');
+    signupLink.innerHTML = 'Don\'t have an account? <a href="#" class="auth-link">Sign up</a>';
+    signupLink.querySelector('.auth-link').addEventListener('click', function(e) {
+        e.preventDefault();
+        loginModal.classList.remove('active');
+        signupModal.classList.add('active');
+    });
+
+    const loginLink = document.createElement('p');
+    loginLink.innerHTML = 'Already have an account? <a href="#" class="auth-link">Log in</a>';
+    loginLink.querySelector('.auth-link').addEventListener('click', function(e) {
+        e.preventDefault();
+        signupModal.classList.remove('active');
+        loginModal.classList.add('active');
+    });
+
+    // Add the links to the modals
+    const loginForm = document.getElementById('loginForm');
+    const emailSignupForm = document.getElementById('emailSignupForm');
+    
+    if (loginForm) {
+        loginForm.insertAdjacentElement('afterend', signupLink);
+    }
+    
+    if (emailSignupForm) {
+        emailSignupForm.insertAdjacentElement('afterend', loginLink);
+    }
+
+    // Close modals when clicking outside
+    window.addEventListener('click', function(e) {
+        if (e.target === loginModal) {
+            loginModal.classList.remove('active');
+        }
+        if (e.target === signupModal) {
+            signupModal.classList.remove('active');
+        }
+    });
+
+    // Close modals with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            loginModal.classList.remove('active');
+            signupModal.classList.remove('active');
+        }
+    });
+}

@@ -29,11 +29,6 @@ import re
 import time
 from langdetect import detect, LangDetectException
 
-# Initialize Sarvam AI client
-sarvam_client = SarvamAI(
-    api_subscription_key=os.getenv("SARVAM_API_KEY")
-)
-
 # Language code mapping for Sarvam AI
 SARVAM_LANGUAGE_MAP = {
     'hi': 'hi-IN',
@@ -53,13 +48,23 @@ SARVAM_LANGUAGE_MAP = {
 # Load environment variables
 load_dotenv()
 
-
+# Initialize Sarvam AI client
+sarvam_client = SarvamAI(
+    api_subscription_key=os.getenv("SARVAM_API_KEY")
+)
 # Quick API key check (using print since logger not ready yet)
 api_key = os.getenv("SARVAM_API_KEY")
 if api_key:
     print(f"✅ Sarvam API Key loaded successfully: {api_key[:10]}...")
 else:
     print("❌ Sarvam API Key not found in .env file")
+
+try:
+    sarvam_client = SarvamAI(api_subscription_key=api_key)
+    print("✅ Sarvam client initialized successfully")
+except Exception as e:
+    print(f"❌ Sarvam client initialization failed: {e}")
+    sarvam_client = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -323,6 +328,9 @@ You are **Krishi Mitra**, a helpful agricultural assistant for farmers.
 Information from tools:
 {results}
 
+CRITICAL MEMORY INSTRUCTION: The user has previously shared personal information stored in memory. When they refer to "my crop", "my area", "my location", or "my farm", you MUST use their remembered information (crop types, location, farming details) to provide specific advice. Do not ask them to repeat information they've already provided.
+
+
 IMPORTANT: You have access to user's remembered information and conversation history. Use this context to provide more personalized and relevant advice.
 
 Format this into clear sections with proper spacing:
@@ -397,8 +405,31 @@ def process_query(user_query):
             query_en = safe_translate(user_query, lang_code, "en")
             logger.info(f"Translated query: {query_en}")
 
-        # Add memory context to query
-        enhanced_query = query_en + memory_context + recent_conversations
+        # # Add memory context to query
+        # enhanced_query = query_en + memory_context + recent_conversations
+
+
+        # Create a more structured memory context
+        memory_prompt = f"""
+        IMPORTANT CONTEXT - Remember this information about the user:
+        {memory_context}
+
+        Recent conversation context:
+        {recent_conversations}
+
+        User's current question: {query_en}
+
+        Please use the remembered information to provide personalized advice. If the user asks about "my crop" or "my area", refer to their previously mentioned crop types and location.
+        """
+
+        enhanced_query = memory_prompt
+
+
+
+
+
+
+
 
         # Process with agent
         try:
@@ -428,8 +459,16 @@ def process_query(user_query):
                 template=summary_prompt_template
             )
 
-            # Use the cleaned result instead of raw_result
-            summary_response = llm1.invoke(summary_prompt.format(results=cleaned_result))
+            # # Use the cleaned result instead of raw_result
+            # summary_response = llm1.invoke(summary_prompt.format(results=cleaned_result))
+
+            # Include memory in summary generation
+            full_context = f"User Memory: {memory_context}\n\nAgent Results: {cleaned_result}"
+            summary_response = llm1.invoke(summary_prompt.format(results=full_context))
+
+
+
+
             summary_en = summary_response.content
             
             # Clean the summary response
@@ -474,6 +513,14 @@ def process_query(user_query):
 def generate_audio_response(text, language_code):
     """Generate audio using Sarvam AI TTS with chunking for long text"""
     try:
+        if sarvam_client is None:
+            logger.error("Sarvam client not available")
+            return None
+
+
+
+
+
         # Map language code to Sarvam format
         sarvam_lang = SARVAM_LANGUAGE_MAP.get(language_code, 'hi-IN')
         
@@ -521,9 +568,51 @@ def generate_audio_response(text, language_code):
         logger.error(f"TTS generation failed: {e}")
         return None
 
+# def generate_single_audio_chunk(text, sarvam_lang):
+#     """Generate audio for a single text chunk"""
+#     try:
+#         response = sarvam_client.text_to_speech.convert(
+#             text=text,
+#             target_language_code=sarvam_lang,
+#             speaker="karun",
+#             pitch=0,
+#             pace=1,
+#             loudness=1,
+#             speech_sample_rate=22050,
+#             enable_preprocessing=True,
+#             model="bulbul:v2"
+#         )
+        
+#         # The correct attribute is 'audios'
+#         if hasattr(response, 'audios') and response.audios:
+#             # audios is likely a list, so take the first one
+#             audio_data = response.audios[0] if isinstance(response.audios, list) else response.audios
+            
+#             # Handle different audio data formats
+#             if isinstance(audio_data, str):
+#                 # Already base64 encoded string
+#                 return audio_data
+#             elif isinstance(audio_data, bytes):
+#                 # Convert bytes to base64
+#                 return base64.b64encode(audio_data).decode('utf-8')
+#             else:
+#                 logger.error(f"Unexpected audio data type: {type(audio_data)}")
+#                 return None
+#         else:
+#             logger.error("No audio data found in response.audios")
+#             return None
+        
+#     except Exception as e:
+#         logger.error(f"Single chunk TTS generation failed: {e}")
+#         return None
+
 def generate_single_audio_chunk(text, sarvam_lang):
     """Generate audio for a single text chunk"""
     try:
+        if sarvam_client is None:
+            logger.error("Sarvam client not initialized")
+            return None
+            
         response = sarvam_client.text_to_speech.convert(
             text=text,
             target_language_code=sarvam_lang,
@@ -536,23 +625,22 @@ def generate_single_audio_chunk(text, sarvam_lang):
             model="bulbul:v2"
         )
         
-        # The correct attribute is 'audios'
-        if hasattr(response, 'audios') and response.audios:
-            # audios is likely a list, so take the first one
+        # Handle different response formats
+        if hasattr(response, 'audio') and response.audio:
+            audio_data = response.audio
+        elif hasattr(response, 'audios') and response.audios:
             audio_data = response.audios[0] if isinstance(response.audios, list) else response.audios
-            
-            # Handle different audio data formats
-            if isinstance(audio_data, str):
-                # Already base64 encoded string
-                return audio_data
-            elif isinstance(audio_data, bytes):
-                # Convert bytes to base64
-                return base64.b64encode(audio_data).decode('utf-8')
-            else:
-                logger.error(f"Unexpected audio data type: {type(audio_data)}")
-                return None
         else:
-            logger.error("No audio data found in response.audios")
+            logger.error(f"No audio data in response. Response attributes: {dir(response)}")
+            return None
+            
+        # Handle different audio data formats
+        if isinstance(audio_data, str):
+            return audio_data
+        elif isinstance(audio_data, bytes):
+            return base64.b64encode(audio_data).decode('utf-8')
+        else:
+            logger.error(f"Unexpected audio data type: {type(audio_data)}")
             return None
         
     except Exception as e:
